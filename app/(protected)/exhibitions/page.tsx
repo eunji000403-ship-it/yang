@@ -31,13 +31,13 @@ function formatDate(value?: string | null) {
 function getStatusTone(status?: string | null) {
   switch (status) {
     case '진행중':
-      return 'text-[#111111] font-semibold'
+      return 'text-[#111111] font-medium'
+    case '준비중':
+      return 'text-[#4b5563] font-medium'
     case '예정':
       return 'text-[#9ca3af] font-medium'
-    case '준비중':
-      return 'text-[#6b7280] font-medium'
     case '종료':
-      return 'text-[#c0c4cc] font-medium'
+      return 'text-[#d1d5db] font-medium'
     default:
       return 'text-[#6b7280] font-medium'
   }
