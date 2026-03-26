@@ -380,16 +380,12 @@ export default function SalesPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="ui-chip-group">
         {PLATFORM_FILTERS.map((item) => (
           <button
             key={item}
             onClick={() => setFilter(item)}
-            className={`rounded-full px-4 py-2 text-sm ${
-              filter === item
-                ? 'bg-black text-white'
-                : 'bg-[#f5f5f5] text-[#6b7280]'
-            }`}
+            className={`ui-chip ${filter === item ? 'is-active' : ''}`}
           >
             {item}
           </button>
@@ -430,28 +426,22 @@ export default function SalesPage() {
               <p className="mt-1 text-sm text-[#6b7280]">주 / 월 / 년 기준 꺾은선 비교</p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="ui-chip-group">
               <button
                 onClick={() => setPeriod('week')}
-                className={`rounded-full px-3 py-1.5 text-sm ${
-                  period === 'week' ? 'bg-black text-white' : 'bg-[#f5f5f5] text-[#6b7280]'
-                }`}
+                className={`ui-chip ${period === 'week' ? 'is-active' : ''}`}
               >
                 주
               </button>
               <button
                 onClick={() => setPeriod('month')}
-                className={`rounded-full px-3 py-1.5 text-sm ${
-                  period === 'month' ? 'bg-black text-white' : 'bg-[#f5f5f5] text-[#6b7280]'
-                }`}
+                className={`ui-chip ${period === 'month' ? 'is-active' : ''}`}
               >
                 월
               </button>
               <button
                 onClick={() => setPeriod('year')}
-                className={`rounded-full px-3 py-1.5 text-sm ${
-                  period === 'year' ? 'bg-black text-white' : 'bg-[#f5f5f5] text-[#6b7280]'
-                }`}
+                className={`ui-chip ${period === 'year' ? 'is-active' : ''}`}
               >
                 년
               </button>

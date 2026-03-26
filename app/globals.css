@@ -439,3 +439,59 @@ body {
     word-break: break-word;
   }
 }
+/* category / filter chip */
+.ui-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.ui-chip:hover {
+  border-color: #111111;
+  background: #fafafa;
+  color: #111111;
+}
+
+.ui-chip.is-active {
+  border-color: #111111;
+  background: #f3f4f6;
+  color: #111111;
+}
+
+.ui-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .ui-chip-group {
+    gap: 8px;
+  }
+
+  .ui-chip {
+    min-height: 36px;
+    padding: 0 14px;
+    font-size: 13px;
+    border-radius: 9px;
+  }
+}
