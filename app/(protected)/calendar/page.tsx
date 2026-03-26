@@ -120,31 +120,38 @@ export default function CalendarPage() {
   }, [items, selectedPlatform])
 
   if (loading) {
-    return <div className="p-8 text-sm text-[#8b95a1]">캘린더 불러오는 중...</div>
+    return <div className="p-4 text-sm text-[#8b95a1] md:p-8">캘린더 불러오는 중...</div>
   }
 
   return (
     <>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {['전체', '29CM', '무신사', '자사몰', '지그재그', 'W컨셉'].map((item) => (
-              <button
-                key={item}
-                onClick={() => setSelectedPlatform(item)}
-                className={`rounded-full px-4 py-2 text-sm transition ${
-                  selectedPlatform === item
-                    ? 'bg-black text-white'
-                    : 'bg-[#f5f5f5] text-[#6b7280]'
-                }`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
+      <div className="space-y-4 md:space-y-6">
+        <div className="mb-1 md:mb-2">
+          <h1 className="text-[20px] font-bold text-[#111111] md:text-[22px]">
+            캘린더
+          </h1>
+          <p className="mt-1 text-sm text-[#6b7280]">
+            기획전 일정을 한눈에 확인할 수 있어요.
+          </p>
         </div>
 
-        <div className="rounded-lg border border-[#e5e7eb] bg-white p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="flex flex-wrap gap-2">
+          {['전체', '29CM', '무신사', '자사몰', '지그재그', 'W컨셉'].map((item) => (
+            <button
+              key={item}
+              onClick={() => setSelectedPlatform(item)}
+              className={`rounded-full px-3 py-2 text-sm transition md:px-4 ${
+                selectedPlatform === item
+                  ? 'bg-black text-white'
+                  : 'bg-[#f5f5f5] text-[#6b7280]'
+              }`}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] md:p-4">
           <FullCalendar
             plugins={[dayGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
@@ -152,11 +159,14 @@ export default function CalendarPage() {
             locale="ko"
             editable={false}
             selectable={false}
-            dayMaxEventRows={3}
+            dayMaxEventRows={2}
             headerToolbar={{
-              left: 'prev,next today',
+              left: 'prev,next',
               center: 'title',
-              right: '',
+              right: 'today',
+            }}
+            buttonText={{
+              today: '오늘',
             }}
             events={filteredEvents}
             eventClick={(info) => {
@@ -183,10 +193,10 @@ export default function CalendarPage() {
             onClick={() => setSelectedItem(null)}
           />
 
-          <aside className="fixed right-0 top-0 z-50 flex h-screen w-full max-w-[420px] flex-col border-l border-[#e5e7eb] bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#f0f1f3] px-6 py-5">
+          <aside className="fixed right-0 top-0 z-50 flex h-screen w-full max-w-full flex-col border-l border-[#e5e7eb] bg-white shadow-2xl md:max-w-[420px]">
+            <div className="flex items-center justify-between border-b border-[#f0f1f3] px-4 py-4 md:px-6 md:py-5">
               <div>
-                <p className="text-xs font-medium uppercase tracking-[0.14em] text-[#9ca3af]">
+                <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[#9ca3af]">
                   Exhibition Detail
                 </p>
                 <h2 className="mt-1 text-lg font-bold text-[#111111]">
@@ -202,20 +212,20 @@ export default function CalendarPage() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-6">
-              <div className="rounded-lg border border-[#eceef1] bg-white p-5">
+            <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
+              <div className="rounded-lg border border-[#eceef1] bg-white p-4 md:p-5">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-[#9ca3af]">
                       {selectedItem.platform}
                     </p>
-                    <h3 className="mt-2 text-2xl font-bold tracking-tight text-[#111111]">
+                    <h3 className="mt-2 break-words text-xl font-bold tracking-tight text-[#111111] md:text-2xl">
                       {selectedItem.title}
                     </h3>
                   </div>
 
                   <span
-                    className={`rounded-md px-2.5 py-1 text-xs font-medium ${statusBadgeClass(
+                    className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-medium ${statusBadgeClass(
                       selectedItem.status
                     )}`}
                   >
@@ -223,7 +233,7 @@ export default function CalendarPage() {
                   </span>
                 </div>
 
-                <div className="mt-6 grid gap-3">
+                <div className="mt-5 grid gap-3">
                   <div className="rounded-lg bg-[#fafafa] p-4">
                     <p className="text-xs font-medium text-[#9ca3af]">기간</p>
                     <p className="mt-2 text-sm font-semibold text-[#111111]">
@@ -261,7 +271,7 @@ export default function CalendarPage() {
 
                   <div className="rounded-lg bg-[#fafafa] p-4">
                     <p className="text-xs font-medium text-[#9ca3af]">메모</p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#4b5563]">
+                    <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-[#4b5563]">
                       {selectedItem.memo || '등록된 메모가 없습니다.'}
                     </p>
                   </div>
@@ -269,7 +279,7 @@ export default function CalendarPage() {
               </div>
             </div>
 
-            <div className="border-t border-[#f0f1f3] px-6 py-5">
+            <div className="border-t border-[#f0f1f3] px-4 py-4 md:px-6 md:py-5">
               <Link
                 href={`/exhibitions/${selectedItem.id}`}
                 className="block w-full rounded-lg bg-black px-4 py-3 text-center text-sm font-medium text-white hover:bg-[#1f2937]"
