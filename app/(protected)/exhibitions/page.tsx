@@ -31,15 +31,15 @@ function formatDate(value?: string | null) {
 function getStatusTone(status?: string | null) {
   switch (status) {
     case '진행중':
-      return 'bg-black text-white border-black'
+      return 'ui-badge active'
     case '예정':
-      return 'bg-white text-[#111111] border-[#dcdfe4]'
+      return 'ui-badge pending'
     case '준비중':
-      return 'bg-[#f6f7f8] text-[#4b5563] border-[#e5e7eb]'
+      return 'ui-badge'
     case '종료':
-      return 'bg-[#f3f4f6] text-[#9ca3af] border-[#e5e7eb]'
+      return 'ui-badge'
     default:
-      return 'bg-white text-[#111111] border-[#dcdfe4]'
+      return 'ui-badge'
   }
 }
 
@@ -200,7 +200,7 @@ export default function ExhibitionsPage() {
       ) : null}
 
       <div className="border border-[#e5e7eb] bg-white">
-        <div className="grid grid-cols-1 gap-3 border-b border-[#e5e7eb] p-4 md:grid-cols-[1.5fr_160px_140px_140px_140px]">
+        <div className="grid grid-cols-1 gap-3 border-b border-[#e5e7eb] p-4 md:grid-cols-[1.5fr_160px_160px_100px]">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -236,10 +236,6 @@ export default function ExhibitionsPage() {
             </select>
           </div>
 
-          <div className="flex items-center text-sm text-[#6b7280]">
-            총 {filteredItems.length}건
-          </div>
-
           <label className="flex items-center justify-start gap-2 text-sm text-[#111111]">
             <input
               type="checkbox"
@@ -249,6 +245,10 @@ export default function ExhibitionsPage() {
             />
             전체 선택
           </label>
+        </div>
+
+        <div className="flex items-center justify-between border-b border-[#eef0f3] px-4 py-3 text-sm text-[#6b7280]">
+          <span>총 {filteredItems.length}건</span>
         </div>
 
         <div className="hidden md:block">
@@ -287,9 +287,7 @@ export default function ExhibitionsPage() {
                 <div>{item.platform || '-'}</div>
 
                 <div>
-                  <span
-                    className={`inline-flex border px-2 py-1 text-xs font-medium ${getStatusTone(item.status)}`}
-                  >
+                  <span className={getStatusTone(item.status)}>
                     {item.status || '-'}
                   </span>
                 </div>
@@ -326,9 +324,7 @@ export default function ExhibitionsPage() {
                         </p>
                       </Link>
 
-                      <span
-                        className={`shrink-0 inline-flex border px-2 py-1 text-[11px] font-medium ${getStatusTone(item.status)}`}
-                      >
+                      <span className={getStatusTone(item.status)}>
                         {item.status || '-'}
                       </span>
                     </div>
@@ -368,4 +364,4 @@ export default function ExhibitionsPage() {
       </div>
     </div>
   )
-} 
+}
