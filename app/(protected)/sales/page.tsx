@@ -23,6 +23,15 @@ function formatDate(value?: string | null) {
   return `${y}.${m}.${d}`
 }
 
+function shortDate(value?: string | null) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${m}.${d}`
+}
+
 export default function SalesPage() {
   const [sales, setSales] = useState<Sale[]>([])
   const [filter, setFilter] = useState('전체')
@@ -78,6 +87,40 @@ export default function SalesPage() {
     if (filtered.length === 0) return 0
     return Math.round(total / filtered.length)
   }, [filtered, total])
+
+  const platformSummary = useMemo(() => {
+    const base = PLATFORM_FILTERS.slice(1).map((name) => ({
+      name,
+      amount: 0,
+    }))
+
+    filtered.forEach((item) => {
+      const found = base.find((row) => row.name === item.platform)
+      if (found) {
+        found.amount += Number(item.amount || 0)
+      }
+    })
+
+    const max = Math.max(...base.map((item) => item.amount), 0)
+
+    return base.map((item) => ({
+      ...item,
+      percent: max > 0 ? (item.amount / max) * 100 : 0,
+    }))
+  }, [filtered])
+
+  const recentChartData = useMemo(() => {
+    const rows = [...filtered].slice(0, 7).reverse()
+    const max = Math.max(...rows.map((item) => Number(item.amount || 0)), 0)
+
+    return rows.map((item) => ({
+      id: item.id,
+      label: shortDate(item.created_at),
+      title: item.title || '기획전명 없음',
+      amount: Number(item.amount || 0),
+      percent: max > 0 ? (Number(item.amount || 0) / max) * 100 : 0,
+    }))
+  }, [filtered])
 
   const handleAdd = async () => {
     if (!title.trim() || !amount.trim()) {
@@ -221,6 +264,68 @@ export default function SalesPage() {
             {item}
           </button>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-4 md:p-5">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-[#111111]">플랫폼별 매출</h2>
+            <p className="mt-1 text-sm text-[#6b7280]">플랫폼별 합계 비교</p>
+          </div>
+
+          <div className="space-y-4">
+            {platformSummary.map((item) => (
+              <div key={item.name}>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-[#111111]">{item.name}</span>
+                  <span className="text-sm text-[#6b7280]">
+                    {item.amount.toLocaleString()}원
+                  </span>
+                </div>
+
+                <div className="h-2 w-full overflow-hidden rounded-full bg-[#f1f3f5]">
+                  <div
+                    className="h-full rounded-full bg-black transition-all duration-300"
+                    style={{ width: `${item.percent}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-4 md:p-5">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-[#111111]">최근 매출 흐름</h2>
+            <p className="mt-1 text-sm text-[#6b7280]">최근 등록 7건 기준</p>
+          </div>
+
+          {recentChartData.length > 0 ? (
+            <div className="flex h-[240px] items-end gap-2">
+              {recentChartData.map((item) => (
+                <div key={item.id} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                  <div className="text-[11px] font-medium text-[#111111]">
+                    {item.amount.toLocaleString()}
+                  </div>
+
+                  <div className="flex h-[160px] w-full items-end">
+                    <div
+                      className="w-full rounded-t-md bg-black transition-all duration-300"
+                      style={{ height: `${Math.max(item.percent, 6)}%` }}
+                      title={`${item.title} - ${item.amount.toLocaleString()}원`}
+                    />
+                  </div>
+
+                  <div className="text-[11px] text-[#6b7280]">{item.label}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-[#e5e7eb] p-8 text-center text-sm text-[#9ca3af]">
+              그래프로 표시할 매출 데이터가 없습니다.
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="rounded-lg border border-[#e5e7eb] bg-white p-4 md:p-5">
