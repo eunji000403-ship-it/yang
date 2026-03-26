@@ -6,167 +6,361 @@ import { supabase } from '@/lib/supabase'
 
 type Exhibition = {
   id: string
-  title: string
-  platform: string
-  status: string
-  start_date?: string
-  end_date?: string
+  title: string | null
+  platform: string | null
+  status: string | null
+  start_date: string | null
+  end_date: string | null
+  owner?: string | null
+  memo?: string | null
 }
 
-const PLATFORM_FILTERS = ['전체', '29CM', '무신사', '자사몰', '지그재그', 'W컨셉']
+const STATUS_OPTIONS = ['전체', '예정', '준비중', '진행중', '종료']
+const PLATFORM_OPTIONS = ['전체', '29CM', '무신사', '자사몰', '지그재그', 'W컨셉']
 
-function StatusBadge({ status }: { status: string }) {
-  const className =
-    status === '진행중'
-      ? 'bg-black text-white'
-      : status === '예정'
-      ? 'bg-[#f3f4f6] text-black'
-      : status === '준비중'
-      ? 'bg-[#f5f5f5] text-[#374151]'
-      : 'bg-[#e5e7eb] text-[#6b7280]'
+function formatDate(value?: string | null) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}.${m}.${d}`
+}
 
-  return (
-    <span className={`rounded-md px-2.5 py-1 text-xs font-medium ${className}`}>
-      {status}
-    </span>
-  )
+function getStatusTone(status?: string | null) {
+  switch (status) {
+    case '진행중':
+      return 'bg-black text-white border-black'
+    case '예정':
+      return 'bg-white text-[#111111] border-[#dcdfe4]'
+    case '준비중':
+      return 'bg-[#f6f7f8] text-[#4b5563] border-[#e5e7eb]'
+    case '종료':
+      return 'bg-[#f3f4f6] text-[#9ca3af] border-[#e5e7eb]'
+    default:
+      return 'bg-white text-[#111111] border-[#dcdfe4]'
+  }
 }
 
 export default function ExhibitionsPage() {
-  const [data, setData] = useState<Exhibition[]>([])
-  const [activeFilter, setActiveFilter] = useState('전체')
-  const [search, setSearch] = useState('')
+  const [items, setItems] = useState<Exhibition[]>([])
+  const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const { data } = await supabase
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('전체')
+  const [platformFilter, setPlatformFilter] = useState('전체')
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [deleting, setDeleting] = useState(false)
+
+  const loadExhibitions = async () => {
+    try {
+      setErrorMessage('')
+
+      const { data, error } = await supabase
         .from('exhibitions')
         .select('*')
-        .order('id', { ascending: false })
+        .order('start_date', { ascending: false })
 
-      setData((data as Exhibition[]) || [])
+      if (error) {
+        console.error(error)
+        setErrorMessage(error.message || '기획전 목록을 불러오지 못했어요.')
+        setItems([])
+        setLoading(false)
+        return
+      }
+
+      setItems((data as Exhibition[]) || [])
+      setLoading(false)
+    } catch (error) {
+      console.error(error)
+      setErrorMessage('기획전 목록을 불러오는 중 오류가 발생했어요.')
+      setItems([])
+      setLoading(false)
     }
+  }
 
-    fetchData()
+  useEffect(() => {
+    loadExhibitions()
   }, [])
 
-  const filtered = useMemo(() => {
-    let result = [...data]
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      const matchesSearch =
+        !search.trim() ||
+        (item.title || '').toLowerCase().includes(search.toLowerCase()) ||
+        (item.platform || '').toLowerCase().includes(search.toLowerCase()) ||
+        (item.owner || '').toLowerCase().includes(search.toLowerCase())
 
-    if (activeFilter !== '전체') {
-      result = result.filter((item) => item.platform === activeFilter)
-    }
+      const matchesStatus =
+        statusFilter === '전체' || item.status === statusFilter
 
-    if (search.trim()) {
-      const q = search.toLowerCase()
-      result = result.filter(
-        (item) =>
-          item.title.toLowerCase().includes(q) ||
-          item.platform.toLowerCase().includes(q)
+      const matchesPlatform =
+        platformFilter === '전체' || item.platform === platformFilter
+
+      return matchesSearch && matchesStatus && matchesPlatform
+    })
+  }, [items, search, statusFilter, platformFilter])
+
+  const allVisibleSelected =
+    filteredItems.length > 0 &&
+    filteredItems.every((item) => selectedIds.includes(item.id))
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAllVisible = () => {
+    if (allVisibleSelected) {
+      setSelectedIds((prev) =>
+        prev.filter((id) => !filteredItems.some((item) => item.id === id))
       )
+      return
     }
 
-    return result
-  }, [data, activeFilter, search])
+    const visibleIds = filteredItems.map((item) => item.id)
+    setSelectedIds((prev) => Array.from(new Set([...prev, ...visibleIds])))
+  }
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) {
+      alert('삭제할 기획전을 선택해주세요.')
+      return
+    }
+
+    const ok = window.confirm(`선택한 ${selectedIds.length}개 기획전을 삭제할까요?`)
+    if (!ok) return
+
+    try {
+      setDeleting(true)
+
+      const { error } = await supabase
+        .from('exhibitions')
+        .delete()
+        .in('id', selectedIds)
+
+      if (error) {
+        alert(error.message || '삭제에 실패했어요.')
+        setDeleting(false)
+        return
+      }
+
+      setSelectedIds([])
+      setDeleting(false)
+      loadExhibitions()
+    } catch (error) {
+      console.error(error)
+      alert('삭제 중 오류가 발생했어요.')
+      setDeleting(false)
+    }
+  }
+
+  if (loading) {
+    return <div className="p-4 text-sm text-[#6b7280] md:p-8">불러오는 중...</div>
+  }
 
   return (
-    <div className="space-y-5 md:space-y-6">
-      <div className="mb-4 md:mb-6">
-        <h1 className="text-[20px] font-bold text-[#111111] md:text-[22px]">
-          기획전 관리
-        </h1>
-        <p className="mt-1 text-sm text-[#6b7280]">ILANG internal workspace</p>
-      </div>
-
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
-          {PLATFORM_FILTERS.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => setActiveFilter(item)}
-              className={`rounded-full px-4 py-2 text-sm transition ${
-                activeFilter === item
-                  ? 'bg-black text-white'
-                  : 'bg-[#f5f5f5] text-[#6b7280]'
-              }`}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-
-        <Link
-          href="/exhibitions/create"
-          className="inline-flex items-center justify-center rounded-lg bg-black px-4 py-2.5 text-sm font-medium text-white hover:bg-[#1f2937]"
-        >
-          + 기획전 등록
-        </Link>
-      </div>
-
-      <div>
-        <input
-          placeholder="기획전명 검색"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-lg border border-[#e5e7eb] px-4 py-3 text-sm text-[#111111] outline-none focus:border-black"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-lg border border-[#e5e7eb] p-5">
-          <p className="text-sm text-[#6b7280]">전체 기획전</p>
-          <p className="mt-2 text-2xl font-bold text-[#111111]">{data.length}</p>
-        </div>
-
-        <div className="rounded-lg border border-[#e5e7eb] p-5">
-          <p className="text-sm text-[#6b7280]">진행중</p>
-          <p className="mt-2 text-2xl font-bold text-[#111111]">
-            {data.filter((item) => item.status === '진행중').length}
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-[#111111]">
+            기획전 관리
+          </h1>
+          <p className="mt-1 text-sm text-[#6b7280]">
+            기획전 등록, 수정, 삭제 및 상태 확인
           </p>
         </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            onClick={handleDeleteSelected}
+            disabled={deleting || selectedIds.length === 0}
+            className="border border-[#dcdfe4] bg-white px-4 py-2.5 text-sm font-medium text-[#111111] transition disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {deleting ? '삭제 중...' : `선택 삭제${selectedIds.length ? ` (${selectedIds.length})` : ''}`}
+          </button>
+
+          <Link
+            href="/exhibitions/create"
+            className="border border-black bg-black px-4 py-2.5 text-center text-sm font-medium text-white transition"
+          >
+            새 기획전 등록
+          </Link>
+        </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-[#e5e7eb]">
-        <table className="min-w-[680px] w-full text-sm">
-          <thead className="bg-[#fafafa] text-[#374151]">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium">기획전명</th>
-              <th className="px-4 py-3 text-left font-medium">플랫폼</th>
-              <th className="px-4 py-3 text-left font-medium">상태</th>
-            </tr>
-          </thead>
+      {errorMessage ? (
+        <div className="border border-[#f1caca] bg-[#fff8f8] px-4 py-3 text-sm text-[#b42318]">
+          {errorMessage}
+        </div>
+      ) : null}
 
-          <tbody>
-            {filtered.map((item) => (
-              <tr
-                key={item.id}
-                className="border-t transition hover:bg-[#f7f7f7]"
-              >
-                <td className="px-4 py-4">
-                  <Link
-                    href={`/exhibitions/${item.id}`}
-                    className="block font-medium text-[#111111] hover:underline"
-                  >
-                    {item.title}
-                  </Link>
-                </td>
-                <td className="px-4 py-4 text-[#4b5563]">{item.platform}</td>
-                <td className="px-4 py-4">
-                  <StatusBadge status={item.status} />
-                </td>
-              </tr>
+      <div className="border border-[#e5e7eb] bg-white">
+        <div className="grid grid-cols-1 gap-3 border-b border-[#e5e7eb] p-4 md:grid-cols-[1.5fr_160px_140px_140px_140px]">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="기획전명, 플랫폼, 담당자 검색"
+            className="w-full border border-[#dcdfe4] bg-white px-3 py-2.5 text-sm text-[#111111] outline-none placeholder:text-[#9ca3af] focus:border-black"
+          />
+
+          <select
+            value={platformFilter}
+            onChange={(e) => setPlatformFilter(e.target.value)}
+            className="w-full border border-[#dcdfe4] bg-white px-3 py-2.5 text-sm text-[#111111] outline-none focus:border-black"
+          >
+            {PLATFORM_OPTIONS.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
             ))}
+          </select>
 
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={3} className="px-4 py-10 text-center text-[#9ca3af]">
-                  데이터가 없습니다
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full border border-[#dcdfe4] bg-white px-3 py-2.5 text-sm text-[#111111] outline-none focus:border-black"
+          >
+            {STATUS_OPTIONS.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+
+          <div className="flex items-center text-sm text-[#6b7280]">
+            총 {filteredItems.length}건
+          </div>
+
+          <label className="flex items-center justify-start gap-2 text-sm text-[#111111]">
+            <input
+              type="checkbox"
+              checked={allVisibleSelected}
+              onChange={toggleSelectAllVisible}
+              className="h-4 w-4 rounded-none border-[#cfd4dc] text-black focus:ring-0"
+            />
+            전체 선택
+          </label>
+        </div>
+
+        <div className="hidden md:block">
+          <div className="grid grid-cols-[48px_1.8fr_140px_120px_140px_140px_120px] border-b border-[#e5e7eb] bg-[#fafafa] px-4 py-3 text-xs font-medium uppercase tracking-[0.04em] text-[#6b7280]">
+            <div />
+            <div>기획전명</div>
+            <div>플랫폼</div>
+            <div>상태</div>
+            <div>시작일</div>
+            <div>종료일</div>
+            <div>담당자</div>
+          </div>
+
+          {filteredItems.length > 0 ? (
+            filteredItems.map((item) => (
+              <div
+                key={item.id}
+                className="grid grid-cols-[48px_1.8fr_140px_120px_140px_140px_120px] items-center border-b border-[#eef0f3] px-4 py-4 text-sm text-[#111111] transition hover:bg-[#fcfcfc]"
+              >
+                <div>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(item.id)}
+                    onChange={() => toggleSelect(item.id)}
+                    className="h-4 w-4 rounded-none border-[#cfd4dc] text-black focus:ring-0"
+                  />
+                </div>
+
+                <Link href={`/exhibitions/${item.id}`} className="min-w-0">
+                  <p className="truncate font-medium">{item.title || '기획전명 없음'}</p>
+                  {item.memo ? (
+                    <p className="mt-1 truncate text-xs text-[#9ca3af]">{item.memo}</p>
+                  ) : null}
+                </Link>
+
+                <div>{item.platform || '-'}</div>
+
+                <div>
+                  <span
+                    className={`inline-flex border px-2 py-1 text-xs font-medium ${getStatusTone(item.status)}`}
+                  >
+                    {item.status || '-'}
+                  </span>
+                </div>
+
+                <div>{formatDate(item.start_date)}</div>
+                <div>{formatDate(item.end_date)}</div>
+                <div>{item.owner || '-'}</div>
+              </div>
+            ))
+          ) : (
+            <div className="p-10 text-center text-sm text-[#9ca3af]">
+              등록된 기획전이 없습니다.
+            </div>
+          )}
+        </div>
+
+        <div className="md:hidden">
+          {filteredItems.length > 0 ? (
+            filteredItems.map((item) => (
+              <div key={item.id} className="border-b border-[#eef0f3] p-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(item.id)}
+                    onChange={() => toggleSelect(item.id)}
+                    className="mt-1 h-4 w-4 rounded-none border-[#cfd4dc] text-black focus:ring-0"
+                  />
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <Link href={`/exhibitions/${item.id}`} className="min-w-0">
+                        <p className="break-words font-medium text-[#111111]">
+                          {item.title || '기획전명 없음'}
+                        </p>
+                      </Link>
+
+                      <span
+                        className={`shrink-0 inline-flex border px-2 py-1 text-[11px] font-medium ${getStatusTone(item.status)}`}
+                      >
+                        {item.status || '-'}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-[#6b7280]">
+                      <div>
+                        <p className="text-[11px] text-[#9ca3af]">플랫폼</p>
+                        <p className="mt-1 text-[#111111]">{item.platform || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-[#9ca3af]">담당자</p>
+                        <p className="mt-1 text-[#111111]">{item.owner || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-[#9ca3af]">시작일</p>
+                        <p className="mt-1 text-[#111111]">{formatDate(item.start_date)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-[#9ca3af]">종료일</p>
+                        <p className="mt-1 text-[#111111]">{formatDate(item.end_date)}</p>
+                      </div>
+                    </div>
+
+                    {item.memo ? (
+                      <p className="mt-3 line-clamp-2 text-sm text-[#9ca3af]">{item.memo}</p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="p-10 text-center text-sm text-[#9ca3af]">
+              등록된 기획전이 없습니다.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
