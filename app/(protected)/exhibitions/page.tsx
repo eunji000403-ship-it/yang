@@ -70,13 +70,15 @@ export default function ExhibitionsPage() {
   }, [data, activeFilter, search])
 
   return (
-    <div className="space-y-6">
-      <div className="mb-6">
-        <h1 className="text-[22px] font-bold text-[#111111]">기획전 관리</h1>
+    <div className="space-y-5 md:space-y-6">
+      <div className="mb-4 md:mb-6">
+        <h1 className="text-[20px] font-bold text-[#111111] md:text-[22px]">
+          기획전 관리
+        </h1>
         <p className="mt-1 text-sm text-[#6b7280]">ILANG internal workspace</p>
       </div>
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           {PLATFORM_FILTERS.map((item) => (
             <button
@@ -96,7 +98,7 @@ export default function ExhibitionsPage() {
 
         <Link
           href="/exhibitions/create"
-          className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#1f2937]"
+          className="inline-flex items-center justify-center rounded-lg bg-black px-4 py-2.5 text-sm font-medium text-white hover:bg-[#1f2937]"
         >
           + 기획전 등록
         </Link>
@@ -111,7 +113,7 @@ export default function ExhibitionsPage() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-[#e5e7eb] p-5">
           <p className="text-sm text-[#6b7280]">전체 기획전</p>
           <p className="mt-2 text-2xl font-bold text-[#111111]">{data.length}</p>
@@ -125,8 +127,8 @@ export default function ExhibitionsPage() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-[#e5e7eb]">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-lg border border-[#e5e7eb]">
+        <table className="min-w-[680px] w-full text-sm">
           <thead className="bg-[#fafafa] text-[#374151]">
             <tr>
               <th className="px-4 py-3 text-left font-medium">기획전명</th>
