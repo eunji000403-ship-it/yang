@@ -2,6 +2,19 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  LineChart,
+  Line,
+} from 'recharts'
 
 type Sale = {
   id: string
@@ -11,7 +24,18 @@ type Sale = {
   created_at?: string | null
 }
 
+type PeriodType = 'week' | 'month' | 'year'
+
 const PLATFORM_FILTERS = ['전체', '29CM', '무신사', '자사몰', '지그재그', 'W컨셉']
+const PLATFORM_ORDER = ['자사몰', '29CM', '무신사', '지그재그', 'W컨셉'] as const
+
+const PLATFORM_COLORS: Record<string, string> = {
+  자사몰: '#111111',
+  '29CM': '#2563eb',
+  무신사: '#16a34a',
+  지그재그: '#db2777',
+  'W컨셉': '#f59e0b',
+}
 
 function formatDate(value?: string | null) {
   if (!value) return '-'
@@ -21,6 +45,43 @@ function formatDate(value?: string | null) {
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}.${m}.${d}`
+}
+
+function formatCurrency(value: number) {
+  return `${value.toLocaleString()}원`
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function getDateKey(date: Date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function getDateKeyFromValue(value?: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return getDateKey(date)
+}
+
+function getMonthKey(date: Date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  return `${y}-${m}`
+}
+
+function getMonthKeyFromValue(value?: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return getMonthKey(date)
 }
 
 function shortDate(value?: string | null) {
@@ -42,6 +103,8 @@ export default function SalesPage() {
   const [platform, setPlatform] = useState('29CM')
   const [amount, setAmount] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const [period, setPeriod] = useState<PeriodType>('week')
 
   const loadSales = async () => {
     try {
@@ -88,39 +151,97 @@ export default function SalesPage() {
     return Math.round(total / filtered.length)
   }, [filtered, total])
 
-  const platformSummary = useMemo(() => {
-    const base = PLATFORM_FILTERS.slice(1).map((name) => ({
-      name,
-      amount: 0,
-    }))
+  const yesterdayBarData = useMemo(() => {
+    const yesterday = addDays(new Date(), -1)
+    const yesterdayKey = getDateKey(yesterday)
 
-    filtered.forEach((item) => {
-      const found = base.find((row) => row.name === item.platform)
-      if (found) {
-        found.amount += Number(item.amount || 0)
+    return PLATFORM_ORDER.map((platformName) => {
+      const amount = sales
+        .filter(
+          (item) =>
+            item.platform === platformName &&
+            getDateKeyFromValue(item.created_at) === yesterdayKey
+        )
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+
+      return {
+        name: platformName,
+        amount,
       }
     })
+  }, [sales])
 
-    const max = Math.max(...base.map((item) => item.amount), 0)
+  const trendData = useMemo(() => {
+    const now = new Date()
 
-    return base.map((item) => ({
-      ...item,
-      percent: max > 0 ? (item.amount / max) * 100 : 0,
-    }))
-  }, [filtered])
+    if (period === 'week') {
+      return Array.from({ length: 7 }).map((_, index) => {
+        const date = addDays(now, -6 + index)
+        const key = getDateKey(date)
+        const label = `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
 
-  const recentChartData = useMemo(() => {
-    const rows = [...filtered].slice(0, 7).reverse()
-    const max = Math.max(...rows.map((item) => Number(item.amount || 0)), 0)
+        const row: Record<string, string | number> = { label }
 
-    return rows.map((item) => ({
-      id: item.id,
-      label: shortDate(item.created_at),
-      title: item.title || '기획전명 없음',
-      amount: Number(item.amount || 0),
-      percent: max > 0 ? (Number(item.amount || 0) / max) * 100 : 0,
-    }))
-  }, [filtered])
+        PLATFORM_ORDER.forEach((platformName) => {
+          row[platformName] = sales
+            .filter(
+              (item) =>
+                item.platform === platformName &&
+                getDateKeyFromValue(item.created_at) === key
+            )
+            .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+        })
+
+        return row
+      })
+    }
+
+    if (period === 'month') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1)
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      const totalDays = end.getDate()
+
+      return Array.from({ length: totalDays }).map((_, index) => {
+        const date = addDays(start, index)
+        const key = getDateKey(date)
+        const label = `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
+
+        const row: Record<string, string | number> = { label }
+
+        PLATFORM_ORDER.forEach((platformName) => {
+          row[platformName] = sales
+            .filter(
+              (item) =>
+                item.platform === platformName &&
+                getDateKeyFromValue(item.created_at) === key
+            )
+            .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+        })
+
+        return row
+      })
+    }
+
+    return Array.from({ length: 12 }).map((_, index) => {
+      const date = new Date(now.getFullYear(), index, 1)
+      const key = getMonthKey(date)
+      const label = `${index + 1}월`
+
+      const row: Record<string, string | number> = { label }
+
+      PLATFORM_ORDER.forEach((platformName) => {
+        row[platformName] = sales
+          .filter(
+            (item) =>
+              item.platform === platformName &&
+              getMonthKeyFromValue(item.created_at) === key
+          )
+          .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+      })
+
+      return row
+    })
+  }, [sales, period])
 
   const handleAdd = async () => {
     if (!title.trim() || !amount.trim()) {
@@ -269,62 +390,90 @@ export default function SalesPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <div className="rounded-lg border border-[#e5e7eb] bg-white p-4 md:p-5">
           <div className="mb-4">
-            <h2 className="text-base font-semibold text-[#111111]">플랫폼별 매출</h2>
-            <p className="mt-1 text-sm text-[#6b7280]">플랫폼별 합계 비교</p>
+            <h2 className="text-base font-semibold text-[#111111]">어제 플랫폼별 매출</h2>
+            <p className="mt-1 text-sm text-[#6b7280]">어제 날짜 기준 막대 비교</p>
           </div>
 
-          <div className="space-y-4">
-            {platformSummary.map((item) => (
-              <div key={item.name}>
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-[#111111]">{item.name}</span>
-                  <span className="text-sm text-[#6b7280]">
-                    {item.amount.toLocaleString()}원
-                  </span>
-                </div>
-
-                <div className="h-2 w-full overflow-hidden rounded-full bg-[#f1f3f5]">
-                  <div
-                    className="h-full rounded-full bg-black transition-all duration-300"
-                    style={{ width: `${item.percent}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+          <div className="h-[280px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={yesterdayBarData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `${Math.round(Number(value) / 10000)}만`}
+                />
+                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
+                  {yesterdayBarData.map((entry) => (
+                    <Cell key={entry.name} fill={PLATFORM_COLORS[entry.name]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
         <div className="rounded-lg border border-[#e5e7eb] bg-white p-4 md:p-5">
-          <div className="mb-4">
-            <h2 className="text-base font-semibold text-[#111111]">최근 매출 흐름</h2>
-            <p className="mt-1 text-sm text-[#6b7280]">최근 등록 7건 기준</p>
+          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-[#111111]">플랫폼별 매출 추이</h2>
+              <p className="mt-1 text-sm text-[#6b7280]">주 / 월 / 년 기준 꺾은선 비교</p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setPeriod('week')}
+                className={`rounded-full px-3 py-1.5 text-sm ${
+                  period === 'week' ? 'bg-black text-white' : 'bg-[#f5f5f5] text-[#6b7280]'
+                }`}
+              >
+                주
+              </button>
+              <button
+                onClick={() => setPeriod('month')}
+                className={`rounded-full px-3 py-1.5 text-sm ${
+                  period === 'month' ? 'bg-black text-white' : 'bg-[#f5f5f5] text-[#6b7280]'
+                }`}
+              >
+                월
+              </button>
+              <button
+                onClick={() => setPeriod('year')}
+                className={`rounded-full px-3 py-1.5 text-sm ${
+                  period === 'year' ? 'bg-black text-white' : 'bg-[#f5f5f5] text-[#6b7280]'
+                }`}
+              >
+                년
+              </button>
+            </div>
           </div>
 
-          {recentChartData.length > 0 ? (
-            <div className="flex h-[240px] items-end gap-2">
-              {recentChartData.map((item) => (
-                <div key={item.id} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-                  <div className="text-[11px] font-medium text-[#111111]">
-                    {item.amount.toLocaleString()}
-                  </div>
-
-                  <div className="flex h-[160px] w-full items-end">
-                    <div
-                      className="w-full rounded-t-md bg-black transition-all duration-300"
-                      style={{ height: `${Math.max(item.percent, 6)}%` }}
-                      title={`${item.title} - ${item.amount.toLocaleString()}원`}
-                    />
-                  </div>
-
-                  <div className="text-[11px] text-[#6b7280]">{item.label}</div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-dashed border-[#e5e7eb] p-8 text-center text-sm text-[#9ca3af]">
-              그래프로 표시할 매출 데이터가 없습니다.
-            </div>
-          )}
+          <div className="h-[320px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                <YAxis
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `${Math.round(Number(value) / 10000)}만`}
+                />
+                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                <Legend />
+                {PLATFORM_ORDER.map((platformName) => (
+                  <Line
+                    key={platformName}
+                    type="monotone"
+                    dataKey={platformName}
+                    stroke={PLATFORM_COLORS[platformName]}
+                    strokeWidth={2.5}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
