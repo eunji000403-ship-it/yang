@@ -172,60 +172,13 @@ export default function SalesPage() {
   }, [sales])
 
   const trendData = useMemo(() => {
-    const now = new Date()
+  const now = new Date()
 
-    if (period === 'week') {
-      return Array.from({ length: 7 }).map((_, index) => {
-        const date = addDays(now, -6 + index)
-        const key = getDateKey(date)
-        const label = `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
-
-        const row: Record<string, string | number> = { label }
-
-        PLATFORM_ORDER.forEach((platformName) => {
-          row[platformName] = sales
-            .filter(
-              (item) =>
-                item.platform === platformName &&
-                getDateKeyFromValue(item.created_at) === key
-            )
-            .reduce((sum, item) => sum + Number(item.amount || 0), 0)
-        })
-
-        return row
-      })
-    }
-
-    if (period === 'month') {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1)
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-      const totalDays = end.getDate()
-
-      return Array.from({ length: totalDays }).map((_, index) => {
-        const date = addDays(start, index)
-        const key = getDateKey(date)
-        const label = `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
-
-        const row: Record<string, string | number> = { label }
-
-        PLATFORM_ORDER.forEach((platformName) => {
-          row[platformName] = sales
-            .filter(
-              (item) =>
-                item.platform === platformName &&
-                getDateKeyFromValue(item.created_at) === key
-            )
-            .reduce((sum, item) => sum + Number(item.amount || 0), 0)
-        })
-
-        return row
-      })
-    }
-
-    return Array.from({ length: 12 }).map((_, index) => {
-      const date = new Date(now.getFullYear(), index, 1)
-      const key = getMonthKey(date)
-      const label = `${index + 1}월`
+  if (period === 'week') {
+    return Array.from({ length: 7 }).map((_, index) => {
+      const date = addDays(now, -6 + index)
+      const key = getDateKey(date)
+      const label = `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
 
       const row: Record<string, string | number> = { label }
 
@@ -234,14 +187,70 @@ export default function SalesPage() {
           .filter(
             (item) =>
               item.platform === platformName &&
-              getMonthKeyFromValue(item.created_at) === key
+              getDateKeyFromValue(item.created_at) === key
           )
           .reduce((sum, item) => sum + Number(item.amount || 0), 0)
       })
 
       return row
     })
-  }, [sales, period])
+  }
+
+  if (period === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1)
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    const totalDays = end.getDate()
+
+    const bucketCount = Math.ceil(totalDays / 3)
+
+    return Array.from({ length: bucketCount }).map((_, index) => {
+      const bucketStart = addDays(start, index * 3)
+      const bucketEnd = addDays(bucketStart, 2)
+
+      const startDay = bucketStart.getDate()
+      const endDay = Math.min(bucketEnd.getDate(), totalDays)
+      const label = `${String(startDay).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`
+
+      const row: Record<string, string | number> = { label }
+
+      PLATFORM_ORDER.forEach((platformName) => {
+        row[platformName] = sales
+          .filter((item) => {
+            if (item.platform !== platformName) return false
+            if (!item.created_at) return false
+
+            const created = new Date(item.created_at)
+            if (Number.isNaN(created.getTime())) return false
+
+            return created >= bucketStart && created <= addDays(bucketStart, 2)
+          })
+          .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+      })
+
+      return row
+    })
+  }
+
+  return Array.from({ length: 12 }).map((_, index) => {
+    const date = new Date(now.getFullYear(), index, 1)
+    const key = getMonthKey(date)
+    const label = `${index + 1}월`
+
+    const row: Record<string, string | number> = { label }
+
+    PLATFORM_ORDER.forEach((platformName) => {
+      row[platformName] = sales
+        .filter(
+          (item) =>
+            item.platform === platformName &&
+            getMonthKeyFromValue(item.created_at) === key
+        )
+        .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+    })
+
+    return row
+  })
+}, [sales, period])
 
   const handleAdd = async () => {
     if (!title.trim() || !amount.trim()) {
