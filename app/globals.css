@@ -630,3 +630,135 @@ body {
     font-size: 13px;
   }
 }
+/* form */
+.ui-input,
+.ui-textarea {
+  width: 100%;
+  border: 1px solid #dcdfe4;
+  background: #ffffff;
+  color: #111111;
+  font-size: 14px;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.ui-input {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+}
+
+.ui-textarea {
+  min-height: 120px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  line-height: 1.65;
+  resize: vertical;
+}
+
+.ui-input::placeholder,
+.ui-textarea::placeholder {
+  color: #9ca3af;
+}
+
+.ui-input:hover,
+.ui-textarea:hover {
+  border-color: #111111;
+  background: #fafafa;
+}
+
+.ui-input:focus,
+.ui-textarea:focus {
+  border-color: #111111;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.06);
+}
+
+.ui-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ui-card {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.ui-page-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #111111;
+}
+
+.ui-page-subtitle {
+  margin-top: 4px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #dcdfe4;
+  background: #ffffff;
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.ui-btn:hover {
+  border-color: #111111;
+  background: #fafafa;
+}
+
+.ui-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ui-btn-primary {
+  border-color: #111111;
+  background: #111111;
+  color: #ffffff;
+}
+
+.ui-btn-primary:hover {
+  background: #000000;
+  border-color: #000000;
+}
+
+@media (max-width: 768px) {
+  .ui-input {
+    min-height: 40px;
+    padding: 0 12px;
+    border-radius: 9px;
+    font-size: 13px;
+  }
+
+  .ui-textarea {
+    min-height: 110px;
+    padding: 11px 12px;
+    border-radius: 9px;
+    font-size: 13px;
+  }
+
+  .ui-btn {
+    min-height: 40px;
+    font-size: 13px;
+  }
+}
