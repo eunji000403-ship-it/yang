@@ -208,29 +208,33 @@ export default function ExhibitionsPage() {
             className="w-full border border-[#dcdfe4] bg-white px-3 py-2.5 text-sm text-[#111111] outline-none placeholder:text-[#9ca3af] focus:border-black"
           />
 
-          <select
-            value={platformFilter}
-            onChange={(e) => setPlatformFilter(e.target.value)}
-            className="w-full border border-[#dcdfe4] bg-white px-3 py-2.5 text-sm text-[#111111] outline-none focus:border-black"
-          >
-            {PLATFORM_OPTIONS.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
+          <div className="ui-select-wrap">
+            <select
+              value={platformFilter}
+              onChange={(e) => setPlatformFilter(e.target.value)}
+              className="ui-select"
+            >
+              {PLATFORM_OPTIONS.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="w-full border border-[#dcdfe4] bg-white px-3 py-2.5 text-sm text-[#111111] outline-none focus:border-black"
-          >
-            {STATUS_OPTIONS.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
+          <div className="ui-select-wrap">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="ui-select"
+            >
+              {STATUS_OPTIONS.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div className="flex items-center text-sm text-[#6b7280]">
             총 {filteredItems.length}건

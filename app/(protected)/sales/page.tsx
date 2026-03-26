@@ -347,17 +347,19 @@ export default function SalesPage() {
             className="w-full rounded-lg border border-[#e5e7eb] px-4 py-3 text-sm outline-none focus:border-black"
           />
 
-          <select
-            value={platform}
-            onChange={(e) => setPlatform(e.target.value)}
-            className="w-full rounded-lg border border-[#e5e7eb] px-4 py-3 text-sm outline-none focus:border-black"
-          >
-            {PLATFORM_FILTERS.slice(1).map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
+<div className="ui-select-wrap">
+  <select
+    value={platform}
+    onChange={(e) => setPlatform(e.target.value)}
+    className="ui-select"
+  >
+    {PLATFORM_FILTERS.slice(1).map((item) => (
+      <option key={item} value={item}>
+        {item}
+      </option>
+    ))}
+  </select>
+</div>
 
           <input
             value={amount}
