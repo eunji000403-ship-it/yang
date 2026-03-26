@@ -4,301 +4,260 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-type PostItem = {
+type Exhibition = {
   id: string
   title: string
-  content: string
-  category: string
-  author: string
-  created_at: string
-  updated_at: string
+  platform: string
+  status: string
+  start_date?: string
+  end_date?: string
 }
 
-type ReadItem = {
+type BoardPost = {
   id: string
-  post_id: string
-  user_email: string
-  acknowledged: boolean
-  read_at: string
-}
-
-function CategoryButton({
-  label,
-  active = false,
-  onClick,
-}: {
-  label: string
-  active?: boolean
-  onClick?: () => void
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${
-        active
-          ? 'bg-[#191f28] text-white'
-          : 'border border-[#e5e8eb] bg-white text-[#4e5968] hover:bg-[#f7f8fa]'
-      }`}
-    >
-      {label}
-    </button>
-  )
-}
-
-function CategoryBadge({ label }: { label: string }) {
-  const styleMap: Record<string, string> = {
-    공지: 'bg-[#fef0f0] text-[#d14343]',
-    회의록: 'bg-[#eef7ff] text-[#1976d2]',
-    업무공유: 'bg-[#e8f7ee] text-[#168a57]',
-  }
-
-  return (
-    <span
-      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-        styleMap[label] ?? 'bg-[#f2f4f6] text-[#6b7684]'
-      }`}
-    >
-      {label}
-    </span>
-  )
-}
-
-function SummaryCard({
-  title,
-  value,
-  sub,
-}: {
   title: string
-  value: string
-  sub: string
-}) {
-  return (
-    <div className="rounded-3xl border border-[#e9edf0] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-      <p className="text-sm font-medium text-[#8b95a1]">{title}</p>
-      <p className="mt-3 text-2xl font-bold tracking-tight text-[#191f28]">{value}</p>
-      <p className="mt-2 text-sm text-[#6b7684]">{sub}</p>
-    </div>
-  )
+  category?: string
+  created_at?: string
 }
 
-function SideNoteCard({
-  title,
-  children,
-}: {
-  title: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="rounded-3xl border border-[#e9edf0] bg-white p-5">
-      <h2 className="text-lg font-semibold text-[#191f28]">{title}</h2>
-      <div className="mt-3 text-sm leading-6 text-[#6b7684]">{children}</div>
-    </div>
-  )
+function todayYmd() {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
-function formatDate(dateString: string) {
-  const d = new Date(dateString)
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}.${month}.${day}`
-}
-
-export default function BoardPage() {
-  const [posts, setPosts] = useState<PostItem[]>([])
-  const [reads, setReads] = useState<ReadItem[]>([])
+export default function DashboardPage() {
+  const [exhibitions, setExhibitions] = useState<Exhibition[]>([])
+  const [posts, setPosts] = useState<BoardPost[]>([])
   const [loading, setLoading] = useState(true)
-  const [currentUserEmail, setCurrentUserEmail] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('전체')
-  const [keyword, setKeyword] = useState('')
-
-  const loadData = async () => {
-    const { data: userData } = await supabase.auth.getUser()
-    const email = userData.user?.email || ''
-    setCurrentUserEmail(email)
-
-    const [{ data: postData, error: postError }, { data: readData, error: readError }] =
-      await Promise.all([
-        supabase.from('posts').select('*').order('created_at', { ascending: false }),
-        supabase.from('post_reads').select('*'),
-      ])
-
-    if (postError || readError) {
-      console.error(postError || readError)
-      setLoading(false)
-      return
-    }
-
-    setPosts((postData as PostItem[]) || [])
-    setReads((readData as ReadItem[]) || [])
-    setLoading(false)
-  }
 
   useEffect(() => {
-    loadData()
+    const load = async () => {
+      const [{ data: exhibitionData }, { data: postData }] = await Promise.all([
+        supabase.from('exhibitions').select('*').order('id', { ascending: false }),
+        supabase.from('board_posts').select('*').order('id', { ascending: false }).limit(5),
+      ])
+
+      setExhibitions((exhibitionData as Exhibition[]) || [])
+      setPosts((postData as BoardPost[]) || [])
+      setLoading(false)
+    }
+
+    load()
   }, [])
 
-  const filteredPosts = useMemo(() => {
-    return posts.filter((post) => {
-      const categoryMatch =
-        selectedCategory === '전체' || post.category === selectedCategory
+  const summary = useMemo(() => {
+    const today = todayYmd()
 
-      const keywordMatch =
-        keyword.trim() === '' ||
-        post.title.toLowerCase().includes(keyword.toLowerCase()) ||
-        post.author.toLowerCase().includes(keyword.toLowerCase()) ||
-        post.content.toLowerCase().includes(keyword.toLowerCase())
+    const ongoing = exhibitions.filter((item) => item.status === '진행중').length
+    const upcoming = exhibitions.filter((item) => item.status === '예정').length
+    const preparing = exhibitions.filter((item) => item.status === '준비중').length
+    const ended = exhibitions.filter((item) => item.status === '종료').length
 
-      return categoryMatch && keywordMatch
+    const thisWeekItems = exhibitions.filter((item) => {
+      if (!item.start_date) return false
+      return item.start_date >= today
     })
-  }, [posts, selectedCategory, keyword])
 
-  const noticeCount = posts.filter((post) => post.category === '공지').length
-  const meetingCount = posts.filter((post) => post.category === '회의록').length
-  const shareCount = posts.filter((post) => post.category === '업무공유').length
+    return {
+      total: exhibitions.length,
+      ongoing,
+      upcoming,
+      preparing,
+      ended,
+      thisWeekItems,
+    }
+  }, [exhibitions])
 
-  const myUnreadCount = posts.filter((post) => {
-    if (!currentUserEmail) return false
-    const record = reads.find(
-      (item) => item.post_id === post.id && item.user_email === currentUserEmail
-    )
-    return !record
-  }).length
+  if (loading) {
+    return <div className="p-4 text-sm text-[#8b95a1] md:p-8">대시보드 불러오는 중...</div>
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <div className="space-y-5 md:space-y-6">
+      <div>
+        <h1 className="text-[20px] font-bold text-[#111111] md:text-[22px]">
+          대시보드
+        </h1>
+        <p className="mt-1 text-sm text-[#6b7280]">ILANG internal workspace</p>
+      </div>
 
-        <div className="flex flex-wrap gap-2">
-          {['전체', '공지', '회의록', '업무공유'].map((item) => (
-            <CategoryButton
-              key={item}
-              label={item}
-              active={selectedCategory === item}
-              onClick={() => setSelectedCategory(item)}
-            />
-          ))}
-          <Link
-            href="/board/write"
-            className="rounded-2xl bg-[#191f28] px-4 py-2 text-sm font-medium text-white"
-          >
-            글 작성
-          </Link>
+      {/* 요약 카드 */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-5">
+          <p className="text-sm text-[#6b7280]">전체 기획전</p>
+          <p className="mt-2 text-2xl font-bold text-[#111111]">{summary.total}</p>
+        </div>
+
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-5">
+          <p className="text-sm text-[#6b7280]">진행중</p>
+          <p className="mt-2 text-2xl font-bold text-[#111111]">{summary.ongoing}</p>
+        </div>
+
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-5">
+          <p className="text-sm text-[#6b7280]">예정</p>
+          <p className="mt-2 text-2xl font-bold text-[#111111]">{summary.upcoming}</p>
+        </div>
+
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-5">
+          <p className="text-sm text-[#6b7280]">준비중</p>
+          <p className="mt-2 text-2xl font-bold text-[#111111]">{summary.preparing}</p>
         </div>
       </div>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard title="전체 게시글" value={String(posts.length)} sub="누적 등록 기준" />
-        <SummaryCard title="공지" value={String(noticeCount)} sub="전체 공지 수" />
-        <SummaryCard title="회의록" value={String(meetingCount)} sub="회의 기록 수" />
-        <SummaryCard title="내 미확인" value={String(myUnreadCount)} sub="읽지 않은 게시글" />
-      </section>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
+        {/* 빠른 메뉴 */}
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-5">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-[#111111]">빠른 메뉴</h2>
+            <p className="mt-1 text-sm text-[#6b7280]">자주 쓰는 기능으로 바로 이동</p>
+          </div>
 
-      <section className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
-        <div className="overflow-hidden rounded-3xl border border-[#e9edf0] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-          <div className="border-b border-[#eef0f3] px-6 py-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-[#191f28]">게시글 목록</h2>
-                <p className="mt-1 text-sm text-[#8b95a1]">
-                  최근 게시글, 읽음 여부, 분류를 빠르게 볼 수 있어요.
-                </p>
-              </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Link
+              href="/exhibitions/create"
+              className="rounded-lg border border-[#e5e7eb] p-4 transition hover:bg-[#fafafa]"
+            >
+              <p className="text-sm font-semibold text-[#111111]">기획전 등록</p>
+              <p className="mt-1 text-sm text-[#6b7280]">새 일정 추가</p>
+            </Link>
 
-              <input
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                className="w-full rounded-2xl border border-[#e5e8eb] bg-[#fbfcfd] px-4 py-3 text-sm outline-none placeholder:text-[#8b95a1] focus:border-[#191f28] md:max-w-xs"
-                placeholder="제목, 작성자, 내용으로 검색"
-              />
+            <Link
+              href="/calendar"
+              className="rounded-lg border border-[#e5e7eb] p-4 transition hover:bg-[#fafafa]"
+            >
+              <p className="text-sm font-semibold text-[#111111]">캘린더 보기</p>
+              <p className="mt-1 text-sm text-[#6b7280]">일정 확인</p>
+            </Link>
+
+            <Link
+              href="/sales"
+              className="rounded-lg border border-[#e5e7eb] p-4 transition hover:bg-[#fafafa]"
+            >
+              <p className="text-sm font-semibold text-[#111111]">매출 관리</p>
+              <p className="mt-1 text-sm text-[#6b7280]">성과 확인</p>
+            </Link>
+
+            <Link
+              href="/board"
+              className="rounded-lg border border-[#e5e7eb] p-4 transition hover:bg-[#fafafa]"
+            >
+              <p className="text-sm font-semibold text-[#111111]">게시판</p>
+              <p className="mt-1 text-sm text-[#6b7280]">업무 공유</p>
+            </Link>
+          </div>
+        </div>
+
+        {/* 운영 요약 */}
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-5">
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-[#111111]">운영 요약</h2>
+            <p className="mt-1 text-sm text-[#6b7280]">지금 기준 전체 운영 상태</p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-lg bg-[#fafafa] px-4 py-3">
+              <span className="text-sm text-[#6b7280]">진행중</span>
+              <span className="text-base font-semibold text-[#111111]">{summary.ongoing}</span>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg bg-[#fafafa] px-4 py-3">
+              <span className="text-sm text-[#6b7280]">예정</span>
+              <span className="text-base font-semibold text-[#111111]">{summary.upcoming}</span>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg bg-[#fafafa] px-4 py-3">
+              <span className="text-sm text-[#6b7280]">준비중</span>
+              <span className="text-base font-semibold text-[#111111]">{summary.preparing}</span>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg bg-[#fafafa] px-4 py-3">
+              <span className="text-sm text-[#6b7280]">종료</span>
+              <span className="text-base font-semibold text-[#111111]">{summary.ended}</span>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-[1.6fr_0.7fr_0.7fr_0.7fr_0.7fr] bg-[#fbfcfd] px-5 py-3 text-sm font-semibold text-[#6b7684]">
-            <div>제목</div>
-            <div>분류</div>
-            <div>작성자</div>
-            <div>작성일</div>
-            <div>내 상태</div>
-          </div>
+      {/* 최근 기획전 */}
+      <div className="rounded-lg border border-[#e5e7eb] bg-white p-5">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-[#111111]">최근 기획전</h2>
+          <p className="mt-1 text-sm text-[#6b7280]">최근 등록된 기획전 현황</p>
+        </div>
 
-          {loading ? (
-            <div className="px-5 py-8 text-sm text-[#8b95a1]">불러오는 중...</div>
-          ) : filteredPosts.length === 0 ? (
-            <div className="px-5 py-8 text-sm text-[#8b95a1]">등록된 게시글이 없어.</div>
-          ) : (
-            filteredPosts.map((post) => {
-              const myRead = reads.find(
-                (item) => item.post_id === post.id && item.user_email === currentUserEmail
-              )
+        <div className="space-y-3">
+          {exhibitions.slice(0, 5).map((item) => (
+            <Link
+              key={item.id}
+              href={`/exhibitions/${item.id}`}
+              className="block rounded-lg border border-[#e5e7eb] p-4 transition hover:bg-[#fafafa]"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-[#111111]">
+                    {item.title}
+                  </p>
+                  <p className="mt-1 text-sm text-[#6b7280]">
+                    {item.platform}
+                    {item.start_date && item.end_date
+                      ? ` · ${item.start_date} ~ ${item.end_date}`
+                      : ''}
+                  </p>
+                </div>
 
-              return (
-                <Link
-                  key={post.id}
-                  href={`/board/${post.id}`}
-                  className="grid grid-cols-[1.6fr_0.7fr_0.7fr_0.7fr_0.7fr] items-center border-t border-[#eef0f3] px-5 py-4 text-sm text-[#333d4b] transition hover:bg-[#fafbfc]"
-                >
-                  <div className="font-medium text-[#191f28]">{post.title}</div>
-                  <div>
-                    <CategoryBadge label={post.category} />
-                  </div>
-                  <div>{post.author}</div>
-                  <div>{formatDate(post.created_at)}</div>
-                  <div>
-                    <span className="text-xs font-medium text-[#6b7684]">
-                      {!myRead ? '미확인' : myRead.acknowledged ? '확인완료' : '읽음'}
-                    </span>
-                  </div>
-                </Link>
-              )
-            })
+                <span className="inline-flex w-fit rounded-md bg-[#f5f5f5] px-2.5 py-1 text-xs font-medium text-[#374151]">
+                  {item.status}
+                </span>
+              </div>
+            </Link>
+          ))}
+
+          {exhibitions.length === 0 && (
+            <div className="rounded-lg border border-dashed border-[#e5e7eb] p-8 text-center text-sm text-[#9ca3af]">
+              등록된 기획전이 없습니다.
+            </div>
           )}
         </div>
+      </div>
 
-        <div className="space-y-4">
-          <SideNoteCard title="게시판 운영 메모">
-            <p>• 게시글을 열면 자동으로 읽음 처리됩니다.</p>
-            <p>• 중요 공지나 회의록은 확인 버튼까지 누르게 운영할 수 있어요.</p>
-            <p>• 상세 페이지에서 댓글과 첨부파일을 함께 관리합니다.</p>
-          </SideNoteCard>
+      {/* 최근 게시글 */}
+      <div className="rounded-lg border border-[#e5e7eb] bg-white p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-[#111111]">최근 게시글</h2>
+            <p className="mt-1 text-sm text-[#6b7280]">최근 공유된 업무 게시글</p>
+          </div>
 
-          <SideNoteCard title="빠른 액션">
-            <div className="space-y-3">
-              <Link
-                href="/board/write"
-                className="block w-full rounded-2xl border border-[#e5e8eb] bg-[#fbfcfd] px-4 py-3 text-left text-sm font-medium text-[#191f28] hover:bg-[#f7f8fa]"
-              >
-                공지 작성하기
-              </Link>
-              <Link
-                href="/board/write"
-                className="block w-full rounded-2xl border border-[#e5e8eb] bg-[#fbfcfd] px-4 py-3 text-left text-sm font-medium text-[#191f28] hover:bg-[#f7f8fa]"
-              >
-                회의록 작성하기
-              </Link>
-              <Link
-                href="/board/write"
-                className="block w-full rounded-2xl border border-[#e5e8eb] bg-[#fbfcfd] px-4 py-3 text-left text-sm font-medium text-[#191f28] hover:bg-[#f7f8fa]"
-              >
-                업무공유 등록하기
-              </Link>
-            </div>
-          </SideNoteCard>
-
-          <SideNoteCard title="운영 요약">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between rounded-2xl bg-[#f7f8fa] px-4 py-3">
-                <span>전체 게시글</span>
-                <span className="font-semibold text-[#191f28]">{posts.length}건</span>
-              </div>
-              <div className="flex items-center justify-between rounded-2xl bg-[#f7f8fa] px-4 py-3">
-                <span>읽음 기록 수</span>
-                <span className="font-semibold text-[#191f28]">{reads.length}건</span>
-              </div>
-            </div>
-          </SideNoteCard>
+          <Link
+            href="/board"
+            className="text-sm font-medium text-[#111111] hover:underline"
+          >
+            전체 보기
+          </Link>
         </div>
-      </section>
+
+        <div className="space-y-3">
+          {posts.map((post) => (
+            <Link
+              key={post.id}
+              href={`/board/${post.id}`}
+              className="block rounded-lg border border-[#e5e7eb] p-4 transition hover:bg-[#fafafa]"
+            >
+              <p className="truncate text-sm font-semibold text-[#111111]">{post.title}</p>
+              <p className="mt-1 text-sm text-[#6b7280]">{post.category || '게시글'}</p>
+            </Link>
+          ))}
+
+          {posts.length === 0 && (
+            <div className="rounded-lg border border-dashed border-[#e5e7eb] p-8 text-center text-sm text-[#9ca3af]">
+              게시글이 없습니다.
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
