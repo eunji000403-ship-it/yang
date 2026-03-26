@@ -5,13 +5,23 @@ import { supabase } from '@/lib/supabase'
 
 type Sale = {
   id: string
-  title: string
-  platform: string
-  amount: number
-  created_at?: string
+  title: string | null
+  platform: string | null
+  amount: number | null
+  created_at?: string | null
 }
 
 const PLATFORM_FILTERS = ['전체', '29CM', '무신사', '자사몰', '지그재그', 'W컨셉']
+
+function formatDate(value?: string | null) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}.${m}.${d}`
+}
 
 export default function SalesPage() {
   const [sales, setSales] = useState<Sale[]>([])
@@ -20,15 +30,34 @@ export default function SalesPage() {
   const [amount, setAmount] = useState('')
   const [filter, setFilter] = useState('전체')
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
 
   const loadSales = async () => {
-    const { data } = await supabase
-      .from('sales')
-      .select('*')
-      .order('id', { ascending: false })
+    try {
+      setErrorMessage('')
 
-    setSales((data as Sale[]) || [])
-    setLoading(false)
+      const { data, error } = await supabase
+        .from('sales')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('sales load error:', error)
+        setErrorMessage(error.message || '매출 데이터를 불러오지 못했어요.')
+        setSales([])
+        setLoading(false)
+        return
+      }
+
+      setSales((data as Sale[]) || [])
+      setLoading(false)
+    } catch (error) {
+      console.error('sales unexpected error:', error)
+      setErrorMessage('페이지를 불러오는 중 오류가 발생했어요.')
+      setSales([])
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -41,87 +70,142 @@ export default function SalesPage() {
   }, [sales, filter])
 
   const total = useMemo(() => {
-    return filtered.reduce((sum, item) => sum + item.amount, 0)
+    return filtered.reduce((sum, item) => sum + Number(item.amount || 0), 0)
   }, [filtered])
 
+  const average = useMemo(() => {
+    if (filtered.length === 0) return 0
+    return Math.round(total / filtered.length)
+  }, [filtered, total])
+
   const handleAdd = async () => {
-    if (!title || !amount) return alert('입력해주세요')
+    if (!title.trim() || !amount.trim()) {
+      alert('기획전명과 매출 금액을 입력해주세요.')
+      return
+    }
 
-    await supabase.from('sales').insert({
-      title,
-      platform,
-      amount: Number(amount),
-    })
+    try {
+      setSaving(true)
+      setErrorMessage('')
 
-    setTitle('')
-    setAmount('')
-    loadSales()
+      const { error } = await supabase.from('sales').insert({
+        title: title.trim(),
+        platform,
+        amount: Number(amount),
+      })
+
+      if (error) {
+        console.error('sales insert error:', error)
+        alert(error.message || '매출 등록에 실패했어요.')
+        setSaving(false)
+        return
+      }
+
+      setTitle('')
+      setAmount('')
+      setSaving(false)
+      loadSales()
+    } catch (error) {
+      console.error('sales insert unexpected error:', error)
+      alert('매출 등록 중 오류가 발생했어요.')
+      setSaving(false)
+    }
   }
 
   if (loading) {
-    return <div className="p-4 text-sm">매출 불러오는 중...</div>
+    return <div className="p-4 text-sm text-[#8b95a1] md:p-8">매출 불러오는 중...</div>
   }
 
   return (
-    <div className="space-y-6">
-
-      {/* 헤더 */}
+    <div className="space-y-5 md:space-y-6">
       <div>
-        <h1 className="text-xl font-bold">매출 관리</h1>
-        <p className="text-sm text-gray-500">기획전별 매출을 관리할 수 있어요</p>
-      </div>
-
-      {/* 총 매출 */}
-      <div className="rounded-lg border p-5 bg-white">
-        <p className="text-sm text-gray-500">총 매출</p>
-        <p className="text-2xl font-bold mt-2">
-          {total.toLocaleString()}원
+        <h1 className="text-[20px] font-bold text-[#111111] md:text-[22px]">
+          매출 관리
+        </h1>
+        <p className="mt-1 text-sm text-[#6b7280]">
+          기획전별 매출을 등록하고 확인할 수 있어요.
         </p>
       </div>
 
-      {/* 입력 */}
-      <div className="rounded-lg border p-5 bg-white space-y-3">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="기획전명"
-          className="w-full border px-3 py-2 rounded"
-        />
+      {errorMessage ? (
+        <div className="rounded-lg border border-[#fecaca] bg-[#fff7f7] p-4 text-sm text-[#b91c1c]">
+          {errorMessage}
+        </div>
+      ) : null}
 
-        <select
-          value={platform}
-          onChange={(e) => setPlatform(e.target.value)}
-          className="w-full border px-3 py-2 rounded"
-        >
-          {PLATFORM_FILTERS.slice(1).map((item) => (
-            <option key={item}>{item}</option>
-          ))}
-        </select>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-5">
+          <p className="text-sm text-[#6b7280]">총 매출</p>
+          <p className="mt-3 text-2xl font-bold text-[#111111]">
+            {total.toLocaleString()}원
+          </p>
+          <p className="mt-2 text-sm text-[#6b7280]">현재 필터 기준</p>
+        </div>
 
-        <input
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="매출 금액"
-          type="number"
-          className="w-full border px-3 py-2 rounded"
-        />
-
-        <button
-          onClick={handleAdd}
-          className="w-full bg-black text-white py-2 rounded"
-        >
-          등록하기
-        </button>
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-5">
+          <p className="text-sm text-[#6b7280]">평균 매출</p>
+          <p className="mt-3 text-2xl font-bold text-[#111111]">
+            {average.toLocaleString()}원
+          </p>
+          <p className="mt-2 text-sm text-[#6b7280]">등록된 매출 평균</p>
+        </div>
       </div>
 
-      {/* 필터 */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="rounded-lg border border-[#e5e7eb] bg-white p-4 md:p-5">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-[#111111]">매출 등록</h2>
+          <p className="mt-1 text-sm text-[#6b7280]">기획전별 매출을 입력하세요.</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="기획전명"
+            className="w-full rounded-lg border border-[#e5e7eb] px-4 py-3 text-sm outline-none focus:border-black"
+          />
+
+          <select
+            value={platform}
+            onChange={(e) => setPlatform(e.target.value)}
+            className="w-full rounded-lg border border-[#e5e7eb] px-4 py-3 text-sm outline-none focus:border-black"
+          >
+            {PLATFORM_FILTERS.slice(1).map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="매출 금액"
+            type="number"
+            className="w-full rounded-lg border border-[#e5e7eb] px-4 py-3 text-sm outline-none focus:border-black"
+          />
+        </div>
+
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={handleAdd}
+            disabled={saving}
+            className="w-full rounded-lg bg-black px-4 py-3 text-sm font-medium text-white disabled:opacity-50 md:w-auto"
+          >
+            {saving ? '등록 중...' : '등록하기'}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
         {PLATFORM_FILTERS.map((item) => (
           <button
             key={item}
             onClick={() => setFilter(item)}
-            className={`px-3 py-1 rounded-full text-sm ${
-              filter === item ? 'bg-black text-white' : 'bg-gray-100'
+            className={`rounded-full px-4 py-2 text-sm ${
+              filter === item
+                ? 'bg-black text-white'
+                : 'bg-[#f5f5f5] text-[#6b7280]'
             }`}
           >
             {item}
@@ -129,25 +213,43 @@ export default function SalesPage() {
         ))}
       </div>
 
-      {/* 리스트 */}
-      <div className="space-y-3">
-        {filtered.map((item) => (
-          <div
-            key={item.id}
-            className="border rounded-lg p-4 bg-white flex justify-between items-center"
-          >
-            <div>
-              <p className="font-semibold">{item.title}</p>
-              <p className="text-sm text-gray-500">{item.platform}</p>
+      <div className="rounded-lg border border-[#e5e7eb] bg-white p-4 md:p-5">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-[#111111]">매출 목록</h2>
+          <p className="mt-1 text-sm text-[#6b7280]">총 {filtered.length}건</p>
+        </div>
+
+        <div className="space-y-3">
+          {filtered.map((item) => (
+            <div
+              key={item.id}
+              className="rounded-lg border border-[#e5e7eb] p-4"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="break-words text-sm font-semibold text-[#111111] md:text-base">
+                    {item.title || '기획전명 없음'}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-[#6b7280]">
+                    <span>{item.platform || '-'}</span>
+                    <span>{formatDate(item.created_at)}</span>
+                  </div>
+                </div>
+
+                <p className="shrink-0 text-base font-bold text-[#111111]">
+                  {Number(item.amount || 0).toLocaleString()}원
+                </p>
+              </div>
             </div>
+          ))}
 
-            <p className="font-bold">
-              {item.amount.toLocaleString()}원
-            </p>
-          </div>
-        ))}
+          {filtered.length === 0 && (
+            <div className="rounded-lg border border-dashed border-[#e5e7eb] p-8 text-center text-sm text-[#9ca3af]">
+              등록된 매출이 없습니다.
+            </div>
+          )}
+        </div>
       </div>
-
     </div>
   )
 }
