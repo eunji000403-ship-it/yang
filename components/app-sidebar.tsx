@@ -99,11 +99,11 @@ export default function AppSidebar({
         onClick={onCloseMobile}
       />
 
-      <aside
-        className={`fixed left-0 top-0 z-50 flex h-screen w-[280px] flex-col border-r border-[#e5e7eb] bg-white px-5 py-6 transition-transform duration-200 md:static md:z-auto md:w-[240px] md:translate-x-0 ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
+<aside
+  className={`fixed left-0 top-0 z-50 flex h-screen w-[280px] flex-col border-r border-[#e5e7eb] bg-white px-5 py-6 transition-transform duration-200 md:static md:z-auto md:h-screen md:w-[240px] ${
+    mobileOpen ? 'translate-x-0' : '-translate-x-full'
+  } md:translate-x-0`}
+>
         <div className="flex items-center justify-between pb-8">
           <Link
             href="/dashboard"

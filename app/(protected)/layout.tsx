@@ -13,17 +13,19 @@ export default function ProtectedLayout({
 
   return (
     <div className="min-h-screen bg-[#f5f5f7]">
-      <div className="md:flex md:min-h-screen">
-        <div className="hidden md:block md:w-[240px]">
+      <div className="flex min-h-screen">
+        <div className="hidden md:block md:w-[240px] md:flex-shrink-0">
           <AppSidebar />
         </div>
 
-        <AppSidebar
-          mobileOpen={mobileOpen}
-          onCloseMobile={() => setMobileOpen(false)}
-        />
+        <div className="md:hidden">
+          <AppSidebar
+            mobileOpen={mobileOpen}
+            onCloseMobile={() => setMobileOpen(false)}
+          />
+        </div>
 
-        <main className="min-h-screen flex-1 md:ml-0">
+        <main className="min-h-screen flex-1">
           <div className="sticky top-0 z-30 flex items-center gap-3 border-b border-[#eceef1] bg-white px-4 py-4 md:hidden">
             <button
               onClick={() => setMobileOpen(true)}
