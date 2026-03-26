@@ -29,32 +29,39 @@ export default function SalesPage() {
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
 
-  useEffect(() => {
-    const loadSales = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('sales')
-          .select('*')
-          .order('created_at', { ascending: false })
+  const [title, setTitle] = useState('')
+  const [platform, setPlatform] = useState('29CM')
+  const [amount, setAmount] = useState('')
+  const [saving, setSaving] = useState(false)
 
-        if (error) {
-          console.error('sales load error:', error)
-          setErrorMessage(error.message || '매출 데이터를 불러오지 못했어요.')
-          setSales([])
-          setLoading(false)
-          return
-        }
+  const loadSales = async () => {
+    try {
+      setErrorMessage('')
 
-        setSales((data as Sale[]) || [])
-        setLoading(false)
-      } catch (error) {
-        console.error('sales unexpected error:', error)
-        setErrorMessage('페이지를 불러오는 중 오류가 발생했어요.')
+      const { data, error } = await supabase
+        .from('sales')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('sales load error:', error)
+        setErrorMessage(error.message || '매출 데이터를 불러오지 못했어요.')
         setSales([])
         setLoading(false)
+        return
       }
-    }
 
+      setSales((data as Sale[]) || [])
+      setLoading(false)
+    } catch (error) {
+      console.error('sales unexpected error:', error)
+      setErrorMessage('페이지를 불러오는 중 오류가 발생했어요.')
+      setSales([])
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     loadSales()
   }, [])
 
@@ -72,6 +79,48 @@ export default function SalesPage() {
     return Math.round(total / filtered.length)
   }, [filtered, total])
 
+  const handleAdd = async () => {
+    if (!title.trim() || !amount.trim()) {
+      alert('기획전명과 매출 금액을 입력해주세요.')
+      return
+    }
+
+    const parsedAmount = Number(amount)
+
+    if (Number.isNaN(parsedAmount) || parsedAmount < 0) {
+      alert('매출 금액을 올바르게 입력해주세요.')
+      return
+    }
+
+    try {
+      setSaving(true)
+      setErrorMessage('')
+
+      const { error } = await supabase.from('sales').insert({
+        title: title.trim(),
+        platform,
+        amount: parsedAmount,
+      })
+
+      if (error) {
+        console.error('sales insert error:', error)
+        alert(error.message || '매출 등록에 실패했어요.')
+        setSaving(false)
+        return
+      }
+
+      setTitle('')
+      setPlatform('29CM')
+      setAmount('')
+      setSaving(false)
+      loadSales()
+    } catch (error) {
+      console.error('sales insert unexpected error:', error)
+      alert('매출 등록 중 오류가 발생했어요.')
+      setSaving(false)
+    }
+  }
+
   if (loading) {
     return <div className="p-4 text-sm text-[#8b95a1] md:p-8">매출 불러오는 중...</div>
   }
@@ -83,7 +132,7 @@ export default function SalesPage() {
           매출 관리
         </h1>
         <p className="mt-1 text-sm text-[#6b7280]">
-          기획전별 매출을 확인할 수 있어요.
+          기획전별 매출을 등록하고 확인할 수 있어요.
         </p>
       </div>
 
@@ -108,6 +157,53 @@ export default function SalesPage() {
             {average.toLocaleString()}원
           </p>
           <p className="mt-2 text-sm text-[#6b7280]">등록된 매출 평균</p>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-[#e5e7eb] bg-white p-4 md:p-5">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-[#111111]">매출 등록</h2>
+          <p className="mt-1 text-sm text-[#6b7280]">기획전명과 매출 금액을 입력하세요.</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="기획전명"
+            className="w-full rounded-lg border border-[#e5e7eb] px-4 py-3 text-sm outline-none focus:border-black"
+          />
+
+          <select
+            value={platform}
+            onChange={(e) => setPlatform(e.target.value)}
+            className="w-full rounded-lg border border-[#e5e7eb] px-4 py-3 text-sm outline-none focus:border-black"
+          >
+            {PLATFORM_FILTERS.slice(1).map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="매출 금액"
+            type="number"
+            min="0"
+            className="w-full rounded-lg border border-[#e5e7eb] px-4 py-3 text-sm outline-none focus:border-black"
+          />
+        </div>
+
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={handleAdd}
+            disabled={saving}
+            className="w-full rounded-lg bg-black px-4 py-3 text-sm font-medium text-white disabled:opacity-50 md:w-auto"
+          >
+            {saving ? '등록 중...' : '등록하기'}
+          </button>
         </div>
       </div>
 
