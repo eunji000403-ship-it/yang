@@ -15,7 +15,7 @@ type Exhibition = {
   memo?: string | null
 }
 
-const STATUS_OPTIONS = ['전체', '예정', '준비중', '진행중', '종료']
+const STATUS_OPTIONS = ['전체', '예정', '진행중', '종료']
 const PLATFORM_OPTIONS = ['전체', '29CM', '무신사', '자사몰', '지그재그', 'W컨셉']
 
 function formatDate(value?: string | null) {
@@ -28,12 +28,33 @@ function formatDate(value?: string | null) {
   return `${y}.${m}.${d}`
 }
 
+function getDateOnly(value?: string | null) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function getDisplayStatus(item: Exhibition) {
+  const today = new Date()
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+  const start = getDateOnly(item.start_date)
+  const end = getDateOnly(item.end_date)
+
+  if (!start || !end) return item.status || '-'
+
+  if (todayOnly < start) return '예정'
+  if (todayOnly > end) return '종료'
+  return '진행중'
+}
+
 function getStatusTone(status?: string | null) {
   switch (status) {
     case '진행중':
-      return 'text-[#111111] font-medium'
+      return 'text-[#111111] font-semibold'
     case '준비중':
-      return 'text-[#4b5563] font-medium'
+      return 'text-[#6b7280] font-medium'
     case '예정':
       return 'text-[#9ca3af] font-medium'
     case '종료':
@@ -88,6 +109,8 @@ export default function ExhibitionsPage() {
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
+      const displayStatus = getDisplayStatus(item)
+
       const matchesSearch =
         !search.trim() ||
         (item.title || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -95,7 +118,7 @@ export default function ExhibitionsPage() {
         (item.owner || '').toLowerCase().includes(search.toLowerCase())
 
       const matchesStatus =
-        statusFilter === '전체' || item.status === statusFilter
+        statusFilter === '전체' || displayStatus === statusFilter
 
       const matchesPlatform =
         platformFilter === '전체' || item.platform === platformFilter
@@ -249,6 +272,9 @@ export default function ExhibitionsPage() {
 
         <div className="flex items-center justify-between border-b border-[#eef0f3] px-4 py-3 text-sm text-[#6b7280]">
           <span>총 {filteredItems.length}건</span>
+          <span className="hidden md:block text-[#9ca3af]">
+            상태는 날짜 기준으로 자동 표시됩니다
+          </span>
         </div>
 
         <div className="hidden md:block">
@@ -263,40 +289,44 @@ export default function ExhibitionsPage() {
           </div>
 
           {filteredItems.length > 0 ? (
-            filteredItems.map((item) => (
-              <div
-                key={item.id}
-                className="grid grid-cols-[48px_1.8fr_140px_120px_140px_140px_120px] items-center border-b border-[#eef0f3] px-4 py-4 text-sm text-[#111111] transition hover:bg-[#fcfcfc]"
-              >
-                <div>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(item.id)}
-                    onChange={() => toggleSelect(item.id)}
-                    className="h-4 w-4 rounded-none border-[#cfd4dc] text-black focus:ring-0"
-                  />
+            filteredItems.map((item) => {
+              const displayStatus = getDisplayStatus(item)
+
+              return (
+                <div
+                  key={item.id}
+                  className="grid grid-cols-[48px_1.8fr_140px_120px_140px_140px_120px] items-center border-b border-[#eef0f3] px-4 py-4 text-sm text-[#111111] transition hover:bg-[#fcfcfc]"
+                >
+                  <div>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(item.id)}
+                      onChange={() => toggleSelect(item.id)}
+                      className="h-4 w-4 rounded-none border-[#cfd4dc] text-black focus:ring-0"
+                    />
+                  </div>
+
+                  <Link href={`/exhibitions/${item.id}`} className="min-w-0">
+                    <p className="truncate font-medium">{item.title || '기획전명 없음'}</p>
+                    {item.memo ? (
+                      <p className="mt-1 truncate text-xs text-[#9ca3af]">{item.memo}</p>
+                    ) : null}
+                  </Link>
+
+                  <div>{item.platform || '-'}</div>
+
+                  <div>
+                    <span className={getStatusTone(displayStatus)}>
+                      {displayStatus || '-'}
+                    </span>
+                  </div>
+
+                  <div>{formatDate(item.start_date)}</div>
+                  <div>{formatDate(item.end_date)}</div>
+                  <div>{item.owner || '-'}</div>
                 </div>
-
-                <Link href={`/exhibitions/${item.id}`} className="min-w-0">
-                  <p className="truncate font-medium">{item.title || '기획전명 없음'}</p>
-                  {item.memo ? (
-                    <p className="mt-1 truncate text-xs text-[#9ca3af]">{item.memo}</p>
-                  ) : null}
-                </Link>
-
-                <div>{item.platform || '-'}</div>
-
-                <div>
-                  <span className={getStatusTone(item.status)}>
-                    {item.status || '-'}
-                  </span>
-                </div>
-
-                <div>{formatDate(item.start_date)}</div>
-                <div>{formatDate(item.end_date)}</div>
-                <div>{item.owner || '-'}</div>
-              </div>
-            ))
+              )
+            })
           ) : (
             <div className="p-10 text-center text-sm text-[#9ca3af]">
               등록된 기획전이 없습니다.
@@ -306,55 +336,59 @@ export default function ExhibitionsPage() {
 
         <div className="md:hidden">
           {filteredItems.length > 0 ? (
-            filteredItems.map((item) => (
-              <div key={item.id} className="border-b border-[#eef0f3] p-4">
-                <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(item.id)}
-                    onChange={() => toggleSelect(item.id)}
-                    className="mt-1 h-4 w-4 rounded-none border-[#cfd4dc] text-black focus:ring-0"
-                  />
+            filteredItems.map((item) => {
+              const displayStatus = getDisplayStatus(item)
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <Link href={`/exhibitions/${item.id}`} className="min-w-0">
-                        <p className="break-words font-medium text-[#111111]">
-                          {item.title || '기획전명 없음'}
-                        </p>
-                      </Link>
+              return (
+                <div key={item.id} className="border-b border-[#eef0f3] p-4">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(item.id)}
+                      onChange={() => toggleSelect(item.id)}
+                      className="mt-1 h-4 w-4 rounded-none border-[#cfd4dc] text-black focus:ring-0"
+                    />
 
-                      <span className={getStatusTone(item.status)}>
-                        {item.status || '-'}
-                      </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <Link href={`/exhibitions/${item.id}`} className="min-w-0">
+                          <p className="break-words font-medium text-[#111111]">
+                            {item.title || '기획전명 없음'}
+                          </p>
+                        </Link>
+
+                        <span className={getStatusTone(displayStatus)}>
+                          {displayStatus || '-'}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-[#6b7280]">
+                        <div>
+                          <p className="text-[11px] text-[#9ca3af]">플랫폼</p>
+                          <p className="mt-1 text-[#111111]">{item.platform || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-[#9ca3af]">담당자</p>
+                          <p className="mt-1 text-[#111111]">{item.owner || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-[#9ca3af]">시작일</p>
+                          <p className="mt-1 text-[#111111]">{formatDate(item.start_date)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-[#9ca3af]">종료일</p>
+                          <p className="mt-1 text-[#111111]">{formatDate(item.end_date)}</p>
+                        </div>
+                      </div>
+
+                      {item.memo ? (
+                        <p className="mt-3 line-clamp-2 text-sm text-[#9ca3af]">{item.memo}</p>
+                      ) : null}
                     </div>
-
-                    <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-[#6b7280]">
-                      <div>
-                        <p className="text-[11px] text-[#9ca3af]">플랫폼</p>
-                        <p className="mt-1 text-[#111111]">{item.platform || '-'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-[#9ca3af]">담당자</p>
-                        <p className="mt-1 text-[#111111]">{item.owner || '-'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-[#9ca3af]">시작일</p>
-                        <p className="mt-1 text-[#111111]">{formatDate(item.start_date)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] text-[#9ca3af]">종료일</p>
-                        <p className="mt-1 text-[#111111]">{formatDate(item.end_date)}</p>
-                      </div>
-                    </div>
-
-                    {item.memo ? (
-                      <p className="mt-3 line-clamp-2 text-sm text-[#9ca3af]">{item.memo}</p>
-                    ) : null}
                   </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           ) : (
             <div className="p-10 text-center text-sm text-[#9ca3af]">
               등록된 기획전이 없습니다.
