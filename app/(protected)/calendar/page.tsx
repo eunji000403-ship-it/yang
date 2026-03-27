@@ -7,6 +7,10 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import {
+  getCalendarEventClass,
+  getDisplayStatus,
+} from '@/lib/exhibitionStatus'
 
 type Exhibition = {
   id: string
@@ -35,51 +39,32 @@ type CalendarEvent = {
 }
 
 function mapExhibitionToCalendarEvent(item: Exhibition): CalendarEvent {
+  const displayStatus = getDisplayStatus(item)
+
   return {
     id: item.id,
-    title: `[${item.platform}] ${item.title} (${item.status})`,
+    title: `[${item.platform}] ${item.title}`,
     start: item.start_date,
     end: item.end_date,
     allDay: true,
     extendedProps: {
       platform: item.platform,
-      status: item.status,
+      status: displayStatus,
       exhibition: item,
     },
   }
 }
 
-function statusHighlightClass(status: string) {
+function statusTextClass(status: string) {
   switch (status) {
     case '진행중':
-      return 'highlight-green'
+      return 'text-[#111111] font-semibold'
     case '예정':
-      return 'highlight-blue'
-    case '준비중':
-      return 'highlight-purple'
+      return 'text-[#9ca3af] font-medium'
     case '종료':
-      return 'highlight-gray'
-    case '신청 완료':
-      return 'highlight-sky'
+      return 'text-[#d1d5db] font-medium'
     default:
-      return 'highlight-gray'
-  }
-}
-
-function statusBadgeClass(status: string) {
-  switch (status) {
-    case '진행중':
-      return 'bg-black text-white'
-    case '예정':
-      return 'bg-[#f3f4f6] text-black'
-    case '준비중':
-      return 'bg-[#f5f5f5] text-[#374151]'
-    case '종료':
-      return 'bg-[#e5e7eb] text-[#6b7280]'
-    case '신청 완료':
-      return 'bg-[#eef2ff] text-[#4338ca]'
-    default:
-      return 'bg-[#f3f4f6] text-black'
+      return 'text-[#6b7280] font-medium'
   }
 }
 
@@ -127,31 +112,35 @@ export default function CalendarPage() {
     <>
       <div className="space-y-4 md:space-y-6">
         <div className="mb-1 md:mb-2">
-          <h1 className="text-[20px] font-bold text-[#111111] md:text-[22px]">
-            캘린더
-          </h1>
-          <p className="mt-1 text-sm text-[#6b7280]">
-            기획전 일정을 한눈에 확인할 수 있어요.
-          </p>
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h1 className="text-[20px] font-bold text-[#111111] md:text-[22px]">
+                캘린더
+              </h1>
+              <p className="mt-1 text-sm text-[#6b7280]">
+                기획전 일정을 한눈에 확인할 수 있어요.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 md:justify-end">
+              {['전체', '29CM', '무신사', '자사몰', '지그재그', 'W컨셉'].map((item) => (
+                <button
+                  key={item}
+                  onClick={() => setSelectedPlatform(item)}
+                  className={`px-3 py-2 text-sm transition md:px-4 ${
+                    selectedPlatform === item
+                      ? 'border border-[#111111] bg-[#f3f4f6] text-[#111111]'
+                      : 'border border-[#e5e7eb] bg-white text-[#6b7280] hover:border-[#111111] hover:text-[#111111]'
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {['전체', '29CM', '무신사', '자사몰', '지그재그', 'W컨셉'].map((item) => (
-            <button
-              key={item}
-              onClick={() => setSelectedPlatform(item)}
-              className={`rounded-full px-3 py-2 text-sm transition md:px-4 ${
-                selectedPlatform === item
-                  ? 'bg-black text-white'
-                  : 'bg-[#f5f5f5] text-[#6b7280]'
-              }`}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
-
-        <div className="rounded-lg border border-[#e5e7eb] bg-white p-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] md:p-4">
+        <div className="calendar-shell border border-[#e5e7eb] bg-white p-2 md:p-4">
           <FullCalendar
             plugins={[dayGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
@@ -159,15 +148,17 @@ export default function CalendarPage() {
             locale="ko"
             editable={false}
             selectable={false}
-            dayMaxEventRows={2}
+            dayMaxEventRows={4}
+            moreLinkText={(n) => `+${n} more`}
             headerToolbar={{
-              left: 'prev,next',
-              center: 'title',
-              right: 'today',
+              left: '',
+              center: 'prev title next',
+              right: '',
             }}
             buttonText={{
               today: '오늘',
             }}
+            titleFormat={{ year: 'numeric', month: 'long' }}
             events={filteredEvents}
             eventClick={(info) => {
               const exhibition = info.event.extendedProps.exhibition as Exhibition
@@ -177,7 +168,7 @@ export default function CalendarPage() {
               const status = arg.event.extendedProps.status as string
 
               return (
-                <div className={`highlight-event-card ${statusHighlightClass(status)}`}>
+                <div className={`highlight-event-card ${getCalendarEventClass(status)}`}>
                   <span className="highlight-event-title">{arg.event.title}</span>
                 </div>
               )
@@ -224,12 +215,8 @@ export default function CalendarPage() {
                     </h3>
                   </div>
 
-                  <span
-                    className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-medium ${statusBadgeClass(
-                      selectedItem.status
-                    )}`}
-                  >
-                    {selectedItem.status}
+                  <span className={`shrink-0 text-sm ${statusTextClass(getDisplayStatus(selectedItem))}`}>
+                    {getDisplayStatus(selectedItem)}
                   </span>
                 </div>
 
@@ -290,6 +277,140 @@ export default function CalendarPage() {
           </aside>
         </>
       )}
+
+      <style jsx global>{`
+        .calendar-shell .fc {
+          --fc-border-color: #eef0f3;
+          --fc-page-bg-color: #ffffff;
+          --fc-neutral-bg-color: #fafafa;
+          --fc-button-text-color: #111111;
+          --fc-button-bg-color: #ffffff;
+          --fc-button-border-color: #e5e7eb;
+          --fc-button-hover-bg-color: #fafafa;
+          --fc-button-hover-border-color: #111111;
+          --fc-button-active-bg-color: #f3f4f6;
+          --fc-button-active-border-color: #111111;
+          --fc-today-bg-color: transparent;
+        }
+
+        .calendar-shell .fc-toolbar {
+          margin-bottom: 16px !important;
+          align-items: center;
+        }
+
+        .calendar-shell .fc-toolbar-title {
+          font-size: 20px !important;
+          font-weight: 700 !important;
+          color: #111111;
+          letter-spacing: -0.02em;
+        }
+
+        .calendar-shell .fc-header-toolbar .fc-toolbar-chunk {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .calendar-shell .fc .fc-button {
+          box-shadow: none !important;
+          border-radius: 9999px !important;
+          padding: 6px 10px !important;
+          font-size: 13px !important;
+          font-weight: 500 !important;
+        }
+
+        .calendar-shell .fc .fc-prev-button,
+        .calendar-shell .fc .fc-next-button {
+          width: 34px;
+          height: 34px;
+          padding: 0 !important;
+          display: inline-flex !important;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .calendar-shell .fc .fc-daygrid-day-frame {
+          min-height: 124px;
+        }
+
+        .calendar-shell .fc .fc-daygrid-more-link {
+          margin-top: 2px;
+          font-size: 11px;
+          color: #6b7280;
+        }
+
+        .calendar-shell .fc .fc-col-header-cell-cushion {
+          padding: 10px 0;
+          font-size: 12px;
+          font-weight: 600;
+          color: #6b7280;
+          text-decoration: none;
+        }
+
+        .calendar-shell .fc .fc-daygrid-day-number {
+          padding: 8px;
+          font-size: 12px;
+          color: #6b7280;
+          text-decoration: none;
+        }
+
+        .calendar-shell .fc-event {
+          border: 0 !important;
+          background: transparent !important;
+        }
+
+        .highlight-event-card {
+          width: 100%;
+          overflow: hidden;
+          border-radius: 6px;
+          padding: 3px 6px;
+          font-size: 11px;
+          line-height: 1.35;
+        }
+
+        .highlight-event-title {
+          display: block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .highlight-green {
+          background: #111111;
+          color: #ffffff;
+        }
+
+        .highlight-blue {
+          background: #f3f4f6;
+          color: #6b7280;
+        }
+
+        .highlight-gray {
+          background: #f8f9fa;
+          color: #c0c4cc;
+        }
+
+        @media (max-width: 768px) {
+          .calendar-shell .fc-toolbar {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+          }
+
+          .calendar-shell .fc-toolbar-title {
+            font-size: 18px !important;
+          }
+
+          .calendar-shell .fc .fc-daygrid-day-frame {
+            min-height: 88px;
+          }
+
+          .highlight-event-card {
+            padding: 2px 5px;
+            font-size: 10px;
+          }
+        }
+      `}</style>
     </>
   )
 }
