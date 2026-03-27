@@ -18,6 +18,8 @@ type Exhibition = {
   end_date: string | null
   owner?: string | null
   memo?: string | null
+  revenue?: number | null
+  roas?: number | null
 }
 
 const STATUS_OPTIONS = ['전체', '진행중', '예정', '종료']
@@ -31,6 +33,11 @@ function formatDate(value?: string | null) {
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}.${m}.${d}`
+}
+
+function formatRevenue(value?: number | null) {
+  if (value === null || value === undefined) return '-'
+  return `${Number(value).toLocaleString()}원`
 }
 
 export default function ExhibitionsPage() {
@@ -261,7 +268,7 @@ export default function ExhibitionsPage() {
         </div>
 
         <div className="hidden md:block">
-          <div className="grid grid-cols-[48px_1.8fr_140px_120px_140px_140px_120px] border-b border-[#e5e7eb] bg-[#fafafa] px-4 py-3 text-xs font-medium uppercase tracking-[0.04em] text-[#6b7280]">
+          <div className="grid grid-cols-[48px_1.6fr_120px_100px_130px_130px_110px_130px] border-b border-[#e5e7eb] bg-[#fafafa] px-4 py-3 text-xs font-medium uppercase tracking-[0.04em] text-[#6b7280]">
             <div />
             <div>기획전명</div>
             <div>플랫폼</div>
@@ -269,13 +276,14 @@ export default function ExhibitionsPage() {
             <div>시작일</div>
             <div>종료일</div>
             <div>담당자</div>
+            <div>매출</div>
           </div>
 
           {filteredItems.length > 0 ? (
             filteredItems.map((item) => (
               <div
                 key={item.id}
-                className="grid grid-cols-[48px_1.8fr_140px_120px_140px_140px_120px] items-center border-b border-[#eef0f3] px-4 py-4 text-sm text-[#111111] transition hover:bg-[#fcfcfc]"
+                className="grid grid-cols-[48px_1.6fr_120px_100px_130px_130px_110px_130px] items-center border-b border-[#eef0f3] px-4 py-4 text-sm text-[#111111] transition hover:bg-[#fcfcfc]"
               >
                 <div>
                   <input
@@ -304,6 +312,7 @@ export default function ExhibitionsPage() {
                 <div>{formatDate(item.start_date)}</div>
                 <div>{formatDate(item.end_date)}</div>
                 <div>{item.owner || '-'}</div>
+                <div>{formatRevenue(item.revenue)}</div>
               </div>
             ))
           ) : (
@@ -354,6 +363,18 @@ export default function ExhibitionsPage() {
                       <div>
                         <p className="text-[11px] text-[#9ca3af]">종료일</p>
                         <p className="mt-1 text-[#111111]">{formatDate(item.end_date)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-[#9ca3af]">매출</p>
+                        <p className="mt-1 text-[#111111]">{formatRevenue(item.revenue)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-[#9ca3af]">ROAS</p>
+                        <p className="mt-1 text-[#111111]">
+                          {item.roas !== null && item.roas !== undefined
+                            ? `${Number(item.roas)}%`
+                            : '-'}
+                        </p>
                       </div>
                     </div>
 

@@ -14,6 +14,8 @@ export default function CreateExhibitionPage() {
   const [endDate, setEndDate] = useState('')
   const [owner, setOwner] = useState('')
   const [memo, setMemo] = useState('')
+  const [revenue, setRevenue] = useState('')
+  const [roas, setRoas] = useState('')
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
@@ -38,6 +40,8 @@ export default function CreateExhibitionPage() {
         end_date: endDate,
         owner: owner.trim() || null,
         memo: memo.trim() || null,
+        revenue: revenue ? Number(revenue) : null,
+        roas: roas ? Number(roas) : null,
       }
 
       const { data, error } = await supabase
@@ -144,6 +148,28 @@ export default function CreateExhibitionPage() {
               onChange={(e) => setOwner(e.target.value)}
               className="ui-input"
               placeholder="예: 은지"
+            />
+          </div>
+
+          <div>
+            <label className="ui-label">매출 (원)</label>
+            <input
+              value={revenue}
+              onChange={(e) => setRevenue(e.target.value)}
+              className="ui-input"
+              placeholder="예: 1200000"
+              inputMode="numeric"
+            />
+          </div>
+
+          <div>
+            <label className="ui-label">ROAS (%)</label>
+            <input
+              value={roas}
+              onChange={(e) => setRoas(e.target.value)}
+              className="ui-input"
+              placeholder="예: 350"
+              inputMode="decimal"
             />
           </div>
 

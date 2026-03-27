@@ -16,6 +16,8 @@ export default function EditExhibitionPage() {
   const [endDate, setEndDate] = useState('')
   const [owner, setOwner] = useState('')
   const [memo, setMemo] = useState('')
+  const [revenue, setRevenue] = useState('')
+  const [roas, setRoas] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -40,6 +42,8 @@ export default function EditExhibitionPage() {
       setEndDate(data.end_date || '')
       setOwner(data.owner || '')
       setMemo(data.memo || '')
+      setRevenue(data.revenue?.toString() || '')
+      setRoas(data.roas?.toString() || '')
       setLoading(false)
     }
 
@@ -60,17 +64,21 @@ export default function EditExhibitionPage() {
     try {
       setSaving(true)
 
+      const payload = {
+        title: title.trim(),
+        platform,
+        status,
+        start_date: startDate,
+        end_date: endDate,
+        owner: owner.trim() || null,
+        memo: memo.trim() || null,
+        revenue: revenue ? Number(revenue) : null,
+        roas: roas ? Number(roas) : null,
+      }
+
       const { error } = await supabase
         .from('exhibitions')
-        .update({
-          title: title.trim(),
-          platform,
-          status,
-          start_date: startDate,
-          end_date: endDate,
-          owner: owner.trim() || null,
-          memo: memo.trim() || null,
-        })
+        .update(payload)
         .eq('id', id)
 
       if (error) {
@@ -173,6 +181,28 @@ export default function EditExhibitionPage() {
               onChange={(e) => setOwner(e.target.value)}
               className="ui-input"
               placeholder="담당자"
+            />
+          </div>
+
+          <div>
+            <label className="ui-label">매출 (원)</label>
+            <input
+              value={revenue}
+              onChange={(e) => setRevenue(e.target.value)}
+              className="ui-input"
+              placeholder="예: 1200000"
+              inputMode="numeric"
+            />
+          </div>
+
+          <div>
+            <label className="ui-label">ROAS (%)</label>
+            <input
+              value={roas}
+              onChange={(e) => setRoas(e.target.value)}
+              className="ui-input"
+              placeholder="예: 350"
+              inputMode="decimal"
             />
           </div>
 
