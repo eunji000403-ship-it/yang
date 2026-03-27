@@ -20,9 +20,10 @@ type Exhibition = {
   memo?: string | null
   revenue?: number | null
   roas?: number | null
+  ad_spend?: number | null
 }
 
-function formatRevenue(value?: number | null) {
+function formatCurrency(value?: number | null) {
   if (value === null || value === undefined) return '-'
   return `${Number(value).toLocaleString()}원`
 }
@@ -102,10 +103,7 @@ export default function ExhibitionDetailPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Link
-          href="/exhibitions"
-          className="ui-btn w-fit"
-        >
+        <Link href="/exhibitions" className="ui-btn w-fit">
           목록으로
         </Link>
 
@@ -173,7 +171,14 @@ export default function ExhibitionDetailPage() {
           <div className="border border-[#eef0f3] bg-[#fafafa] p-4">
             <p className="text-xs font-medium text-[#9ca3af]">매출</p>
             <p className="mt-2 text-sm font-semibold text-[#111111]">
-              {formatRevenue(item.revenue)}
+              {formatCurrency(item.revenue)}
+            </p>
+          </div>
+
+          <div className="border border-[#eef0f3] bg-[#fafafa] p-4">
+            <p className="text-xs font-medium text-[#9ca3af]">광고비</p>
+            <p className="mt-2 text-sm font-semibold text-[#111111]">
+              {formatCurrency(item.ad_spend)}
             </p>
           </div>
 
