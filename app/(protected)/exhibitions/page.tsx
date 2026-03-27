@@ -28,12 +28,16 @@ function formatDate(value?: string | null) {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}.${m}.${d}`
 }
 
 export default function ExhibitionsPage() {
   const [items, setItems] = useState<Exhibition[]>([])
   const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('전체')
   const [platformFilter, setPlatformFilter] = useState('전체')
 
@@ -61,114 +65,186 @@ export default function ExhibitionsPage() {
     return items.filter((item) => {
       const displayStatus = getDisplayStatus(item)
 
-      if (statusFilter !== '전체' && displayStatus !== statusFilter) {
-        return false
-      }
+      const matchesSearch =
+        !search.trim() ||
+        (item.title || '').toLowerCase().includes(search.toLowerCase()) ||
+        (item.platform || '').toLowerCase().includes(search.toLowerCase()) ||
+        (item.owner || '').toLowerCase().includes(search.toLowerCase())
 
-      if (platformFilter !== '전체' && item.platform !== platformFilter) {
-        return false
-      }
+      const matchesStatus =
+        statusFilter === '전체' || displayStatus === statusFilter
 
-      return true
+      const matchesPlatform =
+        platformFilter === '전체' || item.platform === platformFilter
+
+      return matchesSearch && matchesStatus && matchesPlatform
     })
-  }, [items, statusFilter, platformFilter])
+  }, [items, search, statusFilter, platformFilter])
 
   if (loading) {
-    return <div className="p-6 text-sm text-gray-500">불러오는 중...</div>
+    return <div className="p-6 text-sm text-[#8b95a1] md:p-8">불러오는 중...</div>
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-8">
-      {/* 헤더 */}
+    <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-[#111] md:text-2xl">
+        <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-[#111111]">
           기획전 관리
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          전체 기획전과 성과를 확인할 수 있어요
+        <p className="mt-1 text-sm text-[#6b7280]">
+          전체 기획전과 상태를 확인할 수 있어요
         </p>
       </div>
 
-      {/* 필터 */}
-      <div className="flex flex-wrap gap-2">
-        {STATUS_OPTIONS.map((item) => (
-          <button
-            key={item}
-            onClick={() => setStatusFilter(item)}
-            className={`px-3 py-2 text-sm ${
-              statusFilter === item
-                ? 'bg-black text-white'
-                : 'border border-gray-200 text-gray-600'
-            }`}
+      <div className="border border-[#e5e7eb] bg-white">
+        <div className="grid grid-cols-1 gap-3 border-b border-[#eef0f3] p-4 md:grid-cols-[1.4fr_140px_140px]">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="기획전명, 플랫폼, 담당자 검색"
+            className="h-11 w-full border border-[#dcdfe4] bg-white px-3 text-sm text-[#111111] outline-none placeholder:text-[#9ca3af] focus:border-[#111111]"
+          />
+
+          <select
+            value={platformFilter}
+            onChange={(e) => setPlatformFilter(e.target.value)}
+            className="h-11 w-full border border-[#dcdfe4] bg-white px-3 text-sm text-[#111111] outline-none focus:border-[#111111]"
           >
-            {item}
-          </button>
-        ))}
-      </div>
+            {PLATFORM_OPTIONS.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
 
-      <div className="flex flex-wrap gap-2">
-        {PLATFORM_OPTIONS.map((item) => (
-          <button
-            key={item}
-            onClick={() => setPlatformFilter(item)}
-            className={`px-3 py-2 text-sm ${
-              platformFilter === item
-                ? 'bg-black text-white'
-                : 'border border-gray-200 text-gray-600'
-            }`}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-11 w-full border border-[#dcdfe4] bg-white px-3 text-sm text-[#111111] outline-none focus:border-[#111111]"
           >
-            {item}
-          </button>
-        ))}
-      </div>
+            {STATUS_OPTIONS.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      {/* 리스트 */}
-      <div className="space-y-3">
-        {filtered.map((item) => {
-          const displayStatus = getDisplayStatus(item)
+        <div className="flex items-center justify-between border-b border-[#eef0f3] px-4 py-3">
+          <p className="text-sm text-[#6b7280]">총 {filtered.length}건</p>
+          <Link
+            href="/exhibitions/create"
+            className="border border-[#111111] bg-[#111111] px-4 py-2 text-sm font-medium text-white transition hover:bg-black"
+          >
+            기획전 등록
+          </Link>
+        </div>
 
-          return (
-            <Link
-              key={item.id}
-              href={`/exhibitions/${item.id}`}
-              className="block border border-[#eee] bg-white p-4 hover:bg-[#fafafa]"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-gray-400">{item.platform}</p>
-                  <p className="mt-1 text-lg font-semibold text-[#111]">
-                    {item.title}
-                  </p>
-                </div>
+        <div className="hidden md:block">
+          <div className="grid grid-cols-[1.8fr_120px_110px_130px_130px_110px] border-b border-[#eef0f3] bg-[#fafafa] px-4 py-3 text-xs font-medium text-[#8b95a1]">
+            <div>기획전명</div>
+            <div>플랫폼</div>
+            <div>상태</div>
+            <div>시작일</div>
+            <div>종료일</div>
+            <div>담당자</div>
+          </div>
 
-                <span className={`text-sm ${getStatusTextClass(displayStatus)}`}>
-                  {displayStatus}
-                </span>
-              </div>
+          {filtered.length > 0 ? (
+            filtered.map((item) => {
+              const displayStatus = getDisplayStatus(item)
 
-              <div className="mt-3 text-sm text-gray-500">
-                {formatDate(item.start_date)} ~ {formatDate(item.end_date)}
-              </div>
+              return (
+                <Link
+                  key={item.id}
+                  href={`/exhibitions/${item.id}`}
+                  className="grid grid-cols-[1.8fr_120px_110px_130px_130px_110px] items-center border-b border-[#f3f4f6] px-4 py-4 text-sm text-[#111111] transition hover:bg-[#fcfcfc]"
+                >
+                  <div className="min-w-0 pr-4">
+                    <p className="truncate font-medium text-[#111111]">
+                      {item.title || '기획전명 없음'}
+                    </p>
+                    {item.memo ? (
+                      <p className="mt-1 truncate text-xs text-[#9ca3af]">
+                        {item.memo}
+                      </p>
+                    ) : null}
+                  </div>
 
-              <div className="mt-3 flex gap-4 text-sm">
-                <span>
-                  매출:{' '}
-                  <b>
-                    {item.revenue
-                      ? item.revenue.toLocaleString() + '원'
-                      : '-'}
-                  </b>
-                </span>
-                <span>
-                  ROAS:{' '}
-                  <b>
-                    {item.roas ? item.roas.toFixed(1) : '-'}
-                  </b>
-                </span>
-              </div>
-            </Link>
-          )
-        })}
+                  <div className="text-[#4b5563]">{item.platform || '-'}</div>
+
+                  <div>
+                    <span className={`text-sm ${getStatusTextClass(displayStatus)}`}>
+                      {displayStatus}
+                    </span>
+                  </div>
+
+                  <div className="text-[#4b5563]">{formatDate(item.start_date)}</div>
+                  <div className="text-[#4b5563]">{formatDate(item.end_date)}</div>
+                  <div className="text-[#4b5563]">{item.owner || '-'}</div>
+                </Link>
+              )
+            })
+          ) : (
+            <div className="px-4 py-14 text-center text-sm text-[#9ca3af]">
+              등록된 기획전이 없습니다.
+            </div>
+          )}
+        </div>
+
+        <div className="md:hidden">
+          {filtered.length > 0 ? (
+            filtered.map((item) => {
+              const displayStatus = getDisplayStatus(item)
+
+              return (
+                <Link
+                  key={item.id}
+                  href={`/exhibitions/${item.id}`}
+                  className="block border-b border-[#f3f4f6] px-4 py-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs text-[#9ca3af]">{item.platform || '-'}</p>
+                      <p className="mt-1 break-words font-medium text-[#111111]">
+                        {item.title || '기획전명 없음'}
+                      </p>
+                    </div>
+
+                    <span className={`shrink-0 text-sm ${getStatusTextClass(displayStatus)}`}>
+                      {displayStatus}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                    <div>
+                      <p className="text-[11px] text-[#9ca3af]">시작일</p>
+                      <p className="mt-1 text-[#4b5563]">{formatDate(item.start_date)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-[#9ca3af]">종료일</p>
+                      <p className="mt-1 text-[#4b5563]">{formatDate(item.end_date)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-[#9ca3af]">담당자</p>
+                      <p className="mt-1 text-[#4b5563]">{item.owner || '-'}</p>
+                    </div>
+                  </div>
+
+                  {item.memo ? (
+                    <p className="mt-3 line-clamp-2 text-sm text-[#9ca3af]">
+                      {item.memo}
+                    </p>
+                  ) : null}
+                </Link>
+              )
+            })
+          ) : (
+            <div className="px-4 py-14 text-center text-sm text-[#9ca3af]">
+              등록된 기획전이 없습니다.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
