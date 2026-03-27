@@ -17,8 +17,6 @@ type Exhibition = {
   end_date: string | null
   owner?: string | null
   memo?: string | null
-  revenue?: number | null
-  roas?: number | null
 }
 
 const STATUS_OPTIONS = ['전체', '진행중', '예정', '종료']
@@ -40,6 +38,8 @@ export default function ExhibitionsPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('전체')
   const [platformFilter, setPlatformFilter] = useState('전체')
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [deleting, setDeleting] = useState(false)
 
   const loadData = async () => {
     const { data, error } = await supabase
@@ -80,6 +80,62 @@ export default function ExhibitionsPage() {
       return matchesSearch && matchesStatus && matchesPlatform
     })
   }, [items, search, statusFilter, platformFilter])
+
+  const allVisibleSelected =
+    filtered.length > 0 &&
+    filtered.every((item) => selectedIds.includes(item.id))
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAll = () => {
+    if (allVisibleSelected) {
+      setSelectedIds((prev) =>
+        prev.filter((id) => !filtered.some((item) => item.id === id))
+      )
+      return
+    }
+
+    const visibleIds = filtered.map((item) => item.id)
+    setSelectedIds((prev) => Array.from(new Set([...prev, ...visibleIds])))
+  }
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) {
+      alert('삭제할 기획전을 선택해주세요.')
+      return
+    }
+
+    const ok = window.confirm(`선택한 ${selectedIds.length}개 기획전을 삭제할까요?`)
+    if (!ok) return
+
+    try {
+      setDeleting(true)
+
+      const { error } = await supabase
+        .from('exhibitions')
+        .delete()
+        .in('id', selectedIds)
+
+      if (error) {
+        console.error(error)
+        alert(error.message || '삭제에 실패했어요.')
+        setDeleting(false)
+        return
+      }
+
+      setSelectedIds([])
+      setDeleting(false)
+      await loadData()
+    } catch (error) {
+      console.error(error)
+      alert('삭제 중 오류가 발생했어요.')
+      setDeleting(false)
+    }
+  }
 
   if (loading) {
     return <div className="p-6 text-sm text-[#8b95a1] md:p-8">불러오는 중...</div>
@@ -130,18 +186,42 @@ export default function ExhibitionsPage() {
           </select>
         </div>
 
-        <div className="flex items-center justify-between border-b border-[#eef0f3] px-4 py-3">
-          <p className="text-sm text-[#6b7280]">총 {filtered.length}건</p>
-          <Link
-            href="/exhibitions/create"
-            className="border border-[#111111] bg-[#111111] px-4 py-2 text-sm font-medium text-white transition hover:bg-black"
-          >
-            기획전 등록
-          </Link>
+        <div className="flex flex-col gap-3 border-b border-[#eef0f3] px-4 py-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm text-[#4b5563]">
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleSelectAll}
+                className="h-4 w-4 rounded-none border-[#cfd4dc] text-black focus:ring-0"
+              />
+              전체 선택
+            </label>
+
+            <p className="text-sm text-[#6b7280]">총 {filtered.length}건</p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDeleteSelected}
+              disabled={deleting || selectedIds.length === 0}
+              className="border border-[#dcdfe4] bg-white px-4 py-2 text-sm font-medium text-[#111111] transition disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {deleting ? '삭제 중...' : `선택 삭제${selectedIds.length ? ` (${selectedIds.length})` : ''}`}
+            </button>
+
+            <Link
+              href="/exhibitions/create"
+              className="border border-[#111111] bg-[#111111] px-4 py-2 text-sm font-medium text-white transition hover:bg-black"
+            >
+              기획전 등록
+            </Link>
+          </div>
         </div>
 
         <div className="hidden md:block">
-          <div className="grid grid-cols-[1.8fr_120px_110px_130px_130px_110px] border-b border-[#eef0f3] bg-[#fafafa] px-4 py-3 text-xs font-medium text-[#8b95a1]">
+          <div className="grid grid-cols-[44px_1.8fr_120px_110px_130px_130px_110px] border-b border-[#eef0f3] bg-[#fafafa] px-4 py-3 text-xs font-medium text-[#8b95a1]">
+            <div />
             <div>기획전명</div>
             <div>플랫폼</div>
             <div>상태</div>
@@ -155,12 +235,20 @@ export default function ExhibitionsPage() {
               const displayStatus = getDisplayStatus(item)
 
               return (
-                <Link
+                <div
                   key={item.id}
-                  href={`/exhibitions/${item.id}`}
-                  className="grid grid-cols-[1.8fr_120px_110px_130px_130px_110px] items-center border-b border-[#f3f4f6] px-4 py-4 text-sm text-[#111111] transition hover:bg-[#fcfcfc]"
+                  className="grid grid-cols-[44px_1.8fr_120px_110px_130px_130px_110px] items-center border-b border-[#f3f4f6] px-4 py-4 text-sm text-[#111111] transition hover:bg-[#fcfcfc]"
                 >
-                  <div className="min-w-0 pr-4">
+                  <div>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(item.id)}
+                      onChange={() => toggleSelect(item.id)}
+                      className="h-4 w-4 rounded-none border-[#cfd4dc] text-black focus:ring-0"
+                    />
+                  </div>
+
+                  <Link href={`/exhibitions/${item.id}`} className="min-w-0 pr-4">
                     <p className="truncate font-medium text-[#111111]">
                       {item.title || '기획전명 없음'}
                     </p>
@@ -169,7 +257,7 @@ export default function ExhibitionsPage() {
                         {item.memo}
                       </p>
                     ) : null}
-                  </div>
+                  </Link>
 
                   <div className="text-[#4b5563]">{item.platform || '-'}</div>
 
@@ -182,7 +270,7 @@ export default function ExhibitionsPage() {
                   <div className="text-[#4b5563]">{formatDate(item.start_date)}</div>
                   <div className="text-[#4b5563]">{formatDate(item.end_date)}</div>
                   <div className="text-[#4b5563]">{item.owner || '-'}</div>
-                </Link>
+                </div>
               )
             })
           ) : (
@@ -198,45 +286,55 @@ export default function ExhibitionsPage() {
               const displayStatus = getDisplayStatus(item)
 
               return (
-                <Link
+                <div
                   key={item.id}
-                  href={`/exhibitions/${item.id}`}
-                  className="block border-b border-[#f3f4f6] px-4 py-4"
+                  className="border-b border-[#f3f4f6] px-4 py-4"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs text-[#9ca3af]">{item.platform || '-'}</p>
-                      <p className="mt-1 break-words font-medium text-[#111111]">
-                        {item.title || '기획전명 없음'}
-                      </p>
-                    </div>
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(item.id)}
+                      onChange={() => toggleSelect(item.id)}
+                      className="mt-1 h-4 w-4 rounded-none border-[#cfd4dc] text-black focus:ring-0"
+                    />
 
-                    <span className={`shrink-0 text-sm ${getStatusTextClass(displayStatus)}`}>
-                      {displayStatus}
-                    </span>
+                    <Link href={`/exhibitions/${item.id}`} className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs text-[#9ca3af]">{item.platform || '-'}</p>
+                          <p className="mt-1 break-words font-medium text-[#111111]">
+                            {item.title || '기획전명 없음'}
+                          </p>
+                        </div>
+
+                        <span className={`shrink-0 text-sm ${getStatusTextClass(displayStatus)}`}>
+                          {displayStatus}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div>
+                          <p className="text-[11px] text-[#9ca3af]">시작일</p>
+                          <p className="mt-1 text-[#4b5563]">{formatDate(item.start_date)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-[#9ca3af]">종료일</p>
+                          <p className="mt-1 text-[#4b5563]">{formatDate(item.end_date)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-[#9ca3af]">담당자</p>
+                          <p className="mt-1 text-[#4b5563]">{item.owner || '-'}</p>
+                        </div>
+                      </div>
+
+                      {item.memo ? (
+                        <p className="mt-3 line-clamp-2 text-sm text-[#9ca3af]">
+                          {item.memo}
+                        </p>
+                      ) : null}
+                    </Link>
                   </div>
-
-                  <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                    <div>
-                      <p className="text-[11px] text-[#9ca3af]">시작일</p>
-                      <p className="mt-1 text-[#4b5563]">{formatDate(item.start_date)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-[#9ca3af]">종료일</p>
-                      <p className="mt-1 text-[#4b5563]">{formatDate(item.end_date)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-[#9ca3af]">담당자</p>
-                      <p className="mt-1 text-[#4b5563]">{item.owner || '-'}</p>
-                    </div>
-                  </div>
-
-                  {item.memo ? (
-                    <p className="mt-3 line-clamp-2 text-sm text-[#9ca3af]">
-                      {item.memo}
-                    </p>
-                  ) : null}
-                </Link>
+                </div>
               )
             })
           ) : (
