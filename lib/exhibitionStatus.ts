@@ -23,28 +23,12 @@ export function getDisplayStatus(item: {
   const end = getDateOnly(item.end_date)
 
   if (!start || !end) {
-    if (item.status === '진행중' || item.status === '예정' || item.status === '종료') {
-      return item.status
-    }
     return '-'
   }
 
   if (todayOnly < start) return '예정'
   if (todayOnly > end) return '종료'
   return '진행중'
-}
-
-export function getStatusOrder(status: string) {
-  switch (status) {
-    case '진행중':
-      return 1
-    case '예정':
-      return 2
-    case '종료':
-      return 3
-    default:
-      return 4
-  }
 }
 
 export function getStatusTextClass(status?: string | null) {

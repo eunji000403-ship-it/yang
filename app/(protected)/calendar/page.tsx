@@ -10,13 +10,14 @@ import { supabase } from '@/lib/supabase'
 import {
   getCalendarEventClass,
   getDisplayStatus,
+  getStatusTextClass,
 } from '@/lib/exhibitionStatus'
 
 type Exhibition = {
   id: string
   title: string
   platform: string
-  status: string
+  status: string | null
   start_date: string
   end_date: string
   owner?: string | null
@@ -52,19 +53,6 @@ function mapExhibitionToCalendarEvent(item: Exhibition): CalendarEvent {
       status: displayStatus,
       exhibition: item,
     },
-  }
-}
-
-function statusTextClass(status: string) {
-  switch (status) {
-    case '진행중':
-      return 'text-[#111111] font-semibold'
-    case '예정':
-      return 'text-[#9ca3af] font-medium'
-    case '종료':
-      return 'text-[#d1d5db] font-medium'
-    default:
-      return 'text-[#6b7280] font-medium'
   }
 }
 
@@ -221,7 +209,7 @@ export default function CalendarPage() {
                     </h3>
                   </div>
 
-                  <span className={`shrink-0 text-sm ${statusTextClass(getDisplayStatus(selectedItem))}`}>
+                  <span className={`shrink-0 text-sm ${getStatusTextClass(getDisplayStatus(selectedItem))}`}>
                     {getDisplayStatus(selectedItem)}
                   </span>
                 </div>
