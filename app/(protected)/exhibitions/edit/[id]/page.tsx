@@ -1,8 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+
+function calcRoas(revenue: string, adSpend: string) {
+  const revenueNum = Number(revenue)
+  const adSpendNum = Number(adSpend)
+
+  if (
+    Number.isNaN(revenueNum) ||
+    Number.isNaN(adSpendNum) ||
+    adSpendNum <= 0
+  ) {
+    return null
+  }
+
+  return Math.round((revenueNum / adSpendNum) * 100)
+}
 
 export default function EditExhibitionPage() {
   const params = useParams()
@@ -17,9 +32,11 @@ export default function EditExhibitionPage() {
   const [owner, setOwner] = useState('')
   const [memo, setMemo] = useState('')
   const [revenue, setRevenue] = useState('')
-  const [roas, setRoas] = useState('')
+  const [adSpend, setAdSpend] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+
+  const roas = useMemo(() => calcRoas(revenue, adSpend), [revenue, adSpend])
 
   useEffect(() => {
     const loadData = async () => {
@@ -43,7 +60,7 @@ export default function EditExhibitionPage() {
       setOwner(data.owner || '')
       setMemo(data.memo || '')
       setRevenue(data.revenue?.toString() || '')
-      setRoas(data.roas?.toString() || '')
+      setAdSpend(data.ad_spend?.toString() || '')
       setLoading(false)
     }
 
@@ -73,7 +90,8 @@ export default function EditExhibitionPage() {
         owner: owner.trim() || null,
         memo: memo.trim() || null,
         revenue: revenue ? Number(revenue) : null,
-        roas: roas ? Number(roas) : null,
+        ad_spend: adSpend ? Number(adSpend) : null,
+        roas,
       }
 
       const { error } = await supabase
@@ -196,13 +214,23 @@ export default function EditExhibitionPage() {
           </div>
 
           <div>
+            <label className="ui-label">광고비 (원)</label>
+            <input
+              value={adSpend}
+              onChange={(e) => setAdSpend(e.target.value)}
+              className="ui-input"
+              placeholder="예: 300000"
+              inputMode="numeric"
+            />
+          </div>
+
+          <div>
             <label className="ui-label">ROAS (%)</label>
             <input
-              value={roas}
-              onChange={(e) => setRoas(e.target.value)}
-              className="ui-input"
-              placeholder="예: 350"
-              inputMode="decimal"
+              value={roas !== null ? String(roas) : ''}
+              readOnly
+              className="ui-input bg-[#fafafa]"
+              placeholder="자동 계산"
             />
           </div>
 
