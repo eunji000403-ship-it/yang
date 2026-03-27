@@ -43,7 +43,7 @@ function mapExhibitionToCalendarEvent(item: Exhibition): CalendarEvent {
 
   return {
     id: item.id,
-    title: `[${item.platform}] ${item.title}`,
+    title: item.title,
     start: item.start_date,
     end: item.end_date,
     allDay: true,
@@ -148,6 +148,7 @@ export default function CalendarPage() {
             locale="ko"
             editable={false}
             selectable={false}
+            dayMaxEvents={4}
             dayMaxEventRows={4}
             moreLinkText={(n) => `+${n} more`}
             headerToolbar={{
@@ -166,10 +167,15 @@ export default function CalendarPage() {
             }}
             eventContent={(arg) => {
               const status = arg.event.extendedProps.status as string
+              const platform = arg.event.extendedProps.platform as string
+              const exhibition = arg.event.extendedProps.exhibition as Exhibition
 
               return (
                 <div className={`highlight-event-card ${getCalendarEventClass(status)}`}>
-                  <span className="highlight-event-title">{arg.event.title}</span>
+                  <span className="highlight-event-title">
+                    [{platform}] {exhibition.title}
+                  </span>
+                  <span className="highlight-event-status">{status}</span>
                 </div>
               )
             }}
@@ -298,11 +304,17 @@ export default function CalendarPage() {
           align-items: center;
         }
 
+        .calendar-shell .fc-header-toolbar {
+          justify-content: center;
+        }
+
         .calendar-shell .fc-toolbar-title {
           font-size: 20px !important;
           font-weight: 700 !important;
           color: #111111;
           letter-spacing: -0.02em;
+          min-width: 140px;
+          text-align: center;
         }
 
         .calendar-shell .fc-header-toolbar .fc-toolbar-chunk {
@@ -363,7 +375,7 @@ export default function CalendarPage() {
           width: 100%;
           overflow: hidden;
           border-radius: 6px;
-          padding: 3px 6px;
+          padding: 4px 6px;
           font-size: 11px;
           line-height: 1.35;
         }
@@ -373,6 +385,13 @@ export default function CalendarPage() {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+        }
+
+        .highlight-event-status {
+          display: block;
+          margin-top: 2px;
+          font-size: 10px;
+          opacity: 0.95;
         }
 
         .highlight-green {
@@ -393,7 +412,7 @@ export default function CalendarPage() {
         @media (max-width: 768px) {
           .calendar-shell .fc-toolbar {
             flex-direction: column;
-            align-items: flex-start;
+            align-items: center;
             gap: 10px;
           }
 
@@ -406,8 +425,12 @@ export default function CalendarPage() {
           }
 
           .highlight-event-card {
-            padding: 2px 5px;
+            padding: 3px 5px;
             font-size: 10px;
+          }
+
+          .highlight-event-status {
+            font-size: 9px;
           }
         }
       `}</style>
